@@ -9,7 +9,7 @@ Extensions for [minimal](https://github.com/RafaSG13/Minimal), the terminal codi
 - **Name:** the file name. Lowercase letters, digits and `_`, not starting with `_`.
 - **Description:** the first line of the module docstring (required).
 - **Version:** an optional top-level `__version__ = "1.0"` string.
-- The file must define a top-level `register(pi)` function.
+- The file must define a top-level `register(minimal)` function.
 
 ## Use
 

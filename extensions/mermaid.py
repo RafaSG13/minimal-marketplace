@@ -134,11 +134,11 @@ class MermaidSupport(Widget):
             fence.finish()
 
 
-def register(pi):
+def register(minimal):
     if render_rich is None:
         raise ImportError(INSTALL_HINT)
-    pi.register_widget("mermaid", lambda ctx: MermaidSupport(), area="bottom")
-    pi.append_system_prompt(
+    minimal.register_widget("mermaid", lambda ctx: MermaidSupport(), area="bottom")
+    minimal.append_system_prompt(
         "The terminal UI draws ```mermaid fenced code blocks as diagrams. When the user asks for a diagram, "
         "or a diagram would show structure or flow better than prose, write it as a ```mermaid block."
     )

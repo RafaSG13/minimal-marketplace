@@ -1,0 +1,16 @@
+README.md
+  h_e81853c41416fb 12
+extensions/example.py
+  h_e81853c41416fb 22,24,35,42,45,48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "d1ae12770a948d1fbe7ca0e011bf77002f53eebc",
+  "prompts": {},
+  "humans": {
+    "h_e81853c41416fb": {
+      "author": "RafaSG13 <rafasrrg13@gmail.com>"
+    }
+  }
+}

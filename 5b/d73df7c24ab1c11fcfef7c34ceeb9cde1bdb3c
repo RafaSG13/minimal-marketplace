@@ -1,0 +1,20 @@
+README.md
+  h_e81853c41416fb 7,9-18,23-34,38-41,44
+themes/amber.py
+  h_e81853c41416fb 1-36
+themes/dark.py
+  h_e81853c41416fb 1-36
+themes/light.py
+  h_e81853c41416fb 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "5bd73df7c24ab1c11fcfef7c34ceeb9cde1bdb3c",
+  "prompts": {},
+  "humans": {
+    "h_e81853c41416fb": {
+      "author": "RafaSG13 <rafasrrg13@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+README.md
+  h_e81853c41416fb 14
+widgets/logo.py
+  h_e81853c41416fb 1-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "2c8fefca7595a923f79eda607f372f0a64949ad1",
+  "prompts": {},
+  "humans": {
+    "h_e81853c41416fb": {
+      "author": "RafaSG13 <rafasrrg13@gmail.com>"
+    }
+  }
+}

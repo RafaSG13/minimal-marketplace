@@ -11,7 +11,7 @@ One folder per category, one `<name>.py` file per item. There is no index: each 
 | `extensions/` | general extensions (commands, providers, hooks, …)           | `~/.minimal/extensions/`                        |
 | `themes/`     | colour themes for the terminal UI (`minimal.register_theme`) | `~/.minimal/extensions/themes/`                 |
 | `tools/`      | tools for the model (`minimal.register_tool`)                | `~/.minimal/extensions/tools/`                  |
-| `widgets/`    | terminal UI components (`minimal.register_widget`)           | `~/.minimal/extensions/widgets/`                |
+| `widgets/`    | terminal UI components and header logos (`minimal.register_widget`, `minimal.register_logo`) | `~/.minimal/extensions/widgets/` |
 
 The category only groups files: any file may register anything.
 

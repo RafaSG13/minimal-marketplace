@@ -1,0 +1,28 @@
+themes/catppuccin.py
+  h_e81853c41416fb 1-36
+themes/catppuccin_latte.py
+  h_e81853c41416fb 1-36
+themes/cyberpunk.py
+  h_e81853c41416fb 1-36
+themes/dracula.py
+  h_e81853c41416fb 1-36
+themes/forest.py
+  h_e81853c41416fb 1-36
+themes/gruvbox.py
+  h_e81853c41416fb 1-36
+themes/nord.py
+  h_e81853c41416fb 1-36
+themes/tokyo_night.py
+  h_e81853c41416fb 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "8156d121adad6e603188d23e1f7ebaf1371e31e0",
+  "prompts": {},
+  "humans": {
+    "h_e81853c41416fb": {
+      "author": "RafaSG13 <rafasrrg13@gmail.com>"
+    }
+  }
+}

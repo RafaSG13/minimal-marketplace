@@ -38,6 +38,10 @@ def register(minimal):
 '''
 
 
+def _render(values):
+    return re.sub(r"__([A-Z]+)__", lambda m: values.get(m.group(1), m.group(0)), TOOL_TEMPLATE)
+
+
 def _load(path, default):
     try:
         return json.loads(Path(path).read_text(encoding="utf-8"))
@@ -195,13 +199,7 @@ def _crystallize(args, ctx):
             print(f"Skipped: {target.relative_to(root).as_posix()} already exists")
         else:
             doc = command.replace("\\", "\\\\").replace('"', '\\"')
-            source = (
-                TOOL_TEMPLATE.replace("__DOC__", doc)
-                .replace("__NAME__", name)
-                .replace("__RUNS__", str(habit["runs"]))
-                .replace("__COMMAND__", repr(command))
-                .replace("__TOOLNAME__", repr(name))
-            )
+            source = _render({"DOC": doc, "NAME": name, "RUNS": str(habit["runs"]), "COMMAND": repr(command), "TOOLNAME": repr(name)})
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(source, encoding="utf-8")
             state["tools"][name] = command

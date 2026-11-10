@@ -1,0 +1,14 @@
+extensions/crystallize.py
+  h_e81853c41416fb 41-44,202
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "eec2d414840d3c8818ad48c80c7a6358eef4fb24",
+  "prompts": {},
+  "humans": {
+    "h_e81853c41416fb": {
+      "author": "RafaSG13 <rafasrrg13@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+extensions/mermaid.py
+  h_e81853c41416fb 14,28,96
+widgets/animated_logo.py
+  h_e81853c41416fb 1-111
+widgets/callouts.py
+  h_e81853c41416fb 1-69
+widgets/context_gauge.py
+  h_e81853c41416fb 1-71
+widgets/files_touched.py
+  h_e81853c41416fb 1-156
+widgets/git_panel.py
+  h_e81853c41416fb 1-124
+widgets/live_activity.py
+  h_e81853c41416fb 1-84
+widgets/plan_board.py
+  h_e81853c41416fb 1-143
+widgets/style_pack.py
+  h_e81853c41416fb 1-53
+widgets/token_sparkline.py
+  h_e81853c41416fb 1-118
+widgets/tool_timeline.py
+  h_e81853c41416fb 1-102
+widgets/transcript_minimap.py
+  h_e81853c41416fb 1-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "ea563f02cced9c0fcda053a211c90f4b7a840518",
+  "prompts": {},
+  "humans": {
+    "h_e81853c41416fb": {
+      "author": "RafaSG13 <rafasrrg13@gmail.com>"
+    }
+  }
+}

@@ -11,6 +11,7 @@ from __future__ import annotations
 from contextlib import suppress
 
 from rich.text import Text
+from textual.content import Content
 from textual.css.query import NoMatches
 from textual.widget import Widget
 from textual.widgets import Label
@@ -24,7 +25,7 @@ try:
 except ImportError:
     render_rich = None
 
-__version__ = "1.0"
+__version__ = "1.1"
 
 INSTALL_HINT = (
     "the mermaid extension needs termaid: run `uv pip install termaid` in minimal's environment "
@@ -92,7 +93,7 @@ class MermaidFence(MarkdownFence):
         if self.diagram is not None:
             return self.diagram
         if self.error is not None:
-            return Text.assemble(self.code, "\n\n", (f"{theme.WARNING} mermaid: {self.error}", theme.YELLOW))
+            return Content.assemble(self.code, "\n\n", (f"{theme.WARNING} mermaid: {self.error}", "$warning"))
         return self._highlighted_code
 
     def compose(self):

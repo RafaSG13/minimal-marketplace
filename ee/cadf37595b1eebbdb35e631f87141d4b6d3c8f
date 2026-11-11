@@ -1,0 +1,16 @@
+extensions/lenses.py
+  h_e81853c41416fb 3-20,23,31,90-97,134
+extensions/tripwire.py
+  h_e81853c41416fb 5-9,12,18,24,28-33,49-53,57,112-118,135,141,148,181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "eecadf37595b1eebbdb35e631f87141d4b6d3c8f",
+  "prompts": {},
+  "humans": {
+    "h_e81853c41416fb": {
+      "author": "RafaSG13 <rafasrrg13@gmail.com>"
+    }
+  }
+}

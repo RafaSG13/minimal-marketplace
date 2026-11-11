@@ -1,0 +1,20 @@
+README.md
+  h_e81853c41416fb 3
+extensions/compact.py
+  h_e81853c41416fb 1-102
+tools/subagent.py
+  h_e81853c41416fb 1-46
+tools/web_search.py
+  h_e81853c41416fb 1-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "b61bd4e8d51f5b9f20348353e96f67c9049030d5",
+  "prompts": {},
+  "humans": {
+    "h_e81853c41416fb": {
+      "author": "RafaSG13 <rafasrrg13@gmail.com>"
+    }
+  }
+}

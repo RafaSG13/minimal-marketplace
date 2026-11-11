@@ -1,0 +1,38 @@
+.github/workflows/check.yml
+  h_e81853c41416fb 1-16
+README.md
+  h_e81853c41416fb 3,7,16-24,26-30,32,44-62,65-66,70,74-84
+extensions/crystallize.py
+  h_e81853c41416fb 7-8,15,19,26,69,71-74,85,89,147-148,163,178,185,216,222,226-227
+extensions/example.py
+  h_e81853c41416fb 1,5-7,15-17,29-35,38,42-43,45-47
+extensions/ledger.py
+  h_e81853c41416fb 7-8,17,129,148,165,169
+extensions/lenses.py
+  h_e81853c41416fb 7-8,89-90,97,114-115,118,129
+extensions/loose_ends.py
+  h_e81853c41416fb 7-8,56,120
+extensions/mermaid.py
+  h_e81853c41416fb 28,140
+extensions/scope_fence.py
+  h_e81853c41416fb 7-8,163,203
+extensions/tripwire.py
+  h_e81853c41416fb 7-8,138
+widgets/context_gauge.py
+  h_e81853c41416fb 6-7,9-10,42-45,51-53,59,71-72
+widgets/style_pack.py
+  h_e81853c41416fb 7-8,10,42-45,47,58-62
+widgets/token_sparkline.py
+  h_e81853c41416fb 6-7,61,64,67,81-84,110,118-120,123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "67e572dead7e865a1fc3151a08f286ef825dd067",
+  "prompts": {},
+  "humans": {
+    "h_e81853c41416fb": {
+      "author": "RafaSG13 <rafasrrg13@gmail.com>"
+    }
+  }
+}

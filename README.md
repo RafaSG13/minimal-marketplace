@@ -1,6 +1,6 @@
 # minimal-marketplace
 
-Extensions for [minimal](https://github.com/RafaSG13/Minimal), the terminal coding-agent harness. Requires minimal 0.2 or later.
+Extensions for [minimal](https://github.com/RafaSG13/Minimal), the terminal coding-agent harness. Requires minimal 0.3 or later.
 
 ## Layout
 

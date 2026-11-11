@@ -13,4 +13,4 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@v10.3.3
-      - run: uvx --from mnml-agent minimal ext check .
+      - run: uvx --from mnml-agent --with-requirements requirements-ci.txt minimal ext check .

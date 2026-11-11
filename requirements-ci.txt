@@ -1,0 +1,3 @@
+# Third-party packages the items import. CI installs them so `minimal ext check` loads every item
+# instead of failing (or skipping it) because a dependency is missing. Add yours in the same pull request.
+termaid  # extensions/mermaid

@@ -82,3 +82,5 @@ minimal ext check .
 ```
 
 It prints `ok`, `WARN` (an optional dependency is missing, e.g. `needs termaid`) or `FAIL` per item and exits non-zero on any `FAIL`. CI runs the same check on every pull request.
+
+If your item imports a third-party package (like `mermaid` and `termaid`), add it to `requirements-ci.txt` in the same pull request. CI installs that file before the check, so the item is really loaded and validated; without it the check fails or can only warn that it did not load the item.

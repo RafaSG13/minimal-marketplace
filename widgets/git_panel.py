@@ -8,7 +8,7 @@ import subprocess
 from textual.content import Content
 from textual.widgets import Static
 
-from minimal.theme import BRANCH
+from minimal.api import theme
 
 __version__ = "1.0"
 
@@ -96,7 +96,7 @@ class GitPanel(Static):
             return
         lines = [
             Content.assemble(
-                ("GIT", "bold $muted"), (f"  {BRANCH} {data['branch']} ↑{data['ahead']} ↓{data['behind']}", "$dim")
+                ("GIT", "bold $muted"), (f"  {theme.BRANCH} {data['branch']} ↑{data['ahead']} ↓{data['behind']}", "$dim")
             ),
             Content.styled(
                 f"staged {data['staged']} · unstaged {data['unstaged']} · untracked {data['untracked']}", "$muted"

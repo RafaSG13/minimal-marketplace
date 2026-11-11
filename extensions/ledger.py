@@ -13,8 +13,7 @@ from pathlib import Path
 
 from textual.widgets import Static
 
-from minimal.providers.base import result_text
-from minimal.session import new_id, open_session
+from minimal.api import new_id, open_session, result_text
 
 STUB_PREFIX = "[pruned by the user"
 _read_at: dict[str, float] = {}

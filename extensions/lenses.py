@@ -11,7 +11,7 @@ import re
 import sys
 from pathlib import Path
 
-from minimal import tools as core_tools
+from minimal.tools import shell as core_shell  # monkeypatches bash's clip; not part of minimal.api
 
 MIN_CHARS = 2_000
 HEAD = 6_000
@@ -29,12 +29,12 @@ PASSING = (
 
 def _unclipped(run):
     def wrapped(input, ctx):
-        saved = core_tools.clip
-        core_tools.clip = lambda text: text
+        saved = core_shell.clip
+        core_shell.clip = lambda text: text
         try:
             return run(input, ctx)
         finally:
-            core_tools.clip = saved
+            core_shell.clip = saved
 
     return wrapped
 

@@ -4,8 +4,7 @@ from textual.css.query import NoMatches
 from textual.widget import Widget
 from textual.widgets import Static
 
-from minimal.registry import LogoSpec
-from minimal.tui import logo_content
+from minimal.api import LogoSpec, logo_content
 
 __version__ = "1.0"
 

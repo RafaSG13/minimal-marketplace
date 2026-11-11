@@ -13,7 +13,7 @@ from pathlib import Path, PurePosixPath
 
 from textual.widgets import Static
 
-from minimal.tools import _glob_regex
+from minimal.api import glob_regex
 
 GIT_SCOPE = ("--", ".", ":(exclude).minimal")
 STATE = ".minimal/state/fence.json"
@@ -87,7 +87,7 @@ def _inside(rel, globs):
     if rel.startswith(".minimal/") or not globs:
         return True
     return any(
-        _glob_regex(glob).fullmatch(PurePosixPath(rel).name if "/" not in glob else rel) for glob in globs
+        glob_regex(glob).fullmatch(PurePosixPath(rel).name if "/" not in glob else rel) for glob in globs
     )
 
 

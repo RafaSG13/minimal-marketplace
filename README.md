@@ -62,7 +62,7 @@ Unknown keys and values of the wrong type are reported on reload and the default
 
 ## Use
 
-Install minimal with `uv tool install minimal-agent`, then:
+Install minimal with `uv tool install mnml-agent`, then:
 
 ```
 /ext                         pick a marketplace and a category, then tick items to install, update or remove

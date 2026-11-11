@@ -4,7 +4,8 @@ The model records what it could not verify, noticed or left undone with the
 note tool; /ends lets you review the backlog and close the finished items.
 """
 
-__version__ = "1.0"
+__version__ = "1.1"
+__requires__ = ">=0.2"
 
 import json
 from datetime import datetime, timezone
@@ -52,7 +53,7 @@ def _note(input, ctx):
             "kind": kind,
             "text": text.strip(),
             "path": path or None,
-            "session": ctx.session.id,
+            "session": ctx.session_id,
             "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "done": False,
         }
@@ -116,7 +117,7 @@ def register(minimal):
             (str(i["id"]), f"[{i['kind']}] {i['text']}" + (f" ({i['path']})" if i.get("path") else ""), False)
             for i in open_items
         ]
-        ticked = ctx.frontend.choose_many("Loose ends · tick the ones that are done", options)
+        ticked = ctx.ui.choose_many("Loose ends · tick the ones that are done", options)
         if ticked is None:
             print("Cancelled.")
             return

@@ -3,16 +3,11 @@
 from textual.content import Content
 from textual.widgets import Static
 
-__version__ = "1.0"
+__version__ = "1.1"
+__requires__ = ">=0.2"
 
-LIMIT = 200_000
-"""Context window size in tokens."""
-
-WARN = 0.5
-"""Fill fraction from which the bar turns the warning colour."""
-
-CRIT = 0.8
-"""Fill fraction from which the bar turns the error colour."""
+DEFAULTS = {"limit": 200_000, "warn": 0.5, "crit": 0.8}
+"""Context window size in tokens, and the fill fractions from which the bar turns warning / error."""
 
 WIDTH = 24
 """Width of the bar in cells."""
@@ -44,19 +39,24 @@ class ContextGauge(Static):
     def refresh_live(self, ctx, event: dict) -> None:
         self._draw(ctx)
 
+    def __init__(self, settings) -> None:
+        super().__init__()
+        self.settings = settings
+
     def _draw(self, ctx) -> None:
         tokens = ctx.context_tokens
         if tokens is None:
             self.display = False
             return
-        frac = min(tokens / LIMIT, 1)
-        color = "$success" if frac < WARN else "$warning" if frac < CRIT else "$error"
+        limit, warn, crit = self.settings["limit"], self.settings["warn"], self.settings["crit"]
+        frac = min(tokens / limit, 1)
+        color = "$success" if frac < warn else "$warning" if frac < crit else "$error"
         parts = [
             ("ctx ", "$muted"),
             "▕",
             _bar(frac, WIDTH, color),
             "▏ ",
-            f"{tokens / 1000:.1f}k/{LIMIT // 1000}k {frac:.0%}",
+            f"{tokens / 1000:.1f}k/{limit // 1000}k {frac:.0%}",
         ]
         usage = _last_usage(ctx.messages)
         if usage:
@@ -68,4 +68,5 @@ class ContextGauge(Static):
 
 
 def register(minimal):
-    minimal.register_widget("context_gauge", lambda ctx: ContextGauge(), area="bottom")
+    settings = minimal.declare_settings(DEFAULTS)
+    minimal.register_widget("context_gauge", lambda ctx: ContextGauge(settings), area="bottom")

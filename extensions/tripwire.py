@@ -4,7 +4,8 @@
 files it is re-run and a [tripwire] note is appended to the tool result.
 """
 
-__version__ = "1.0"
+__version__ = "1.1"
+__requires__ = ">=0.2"
 
 import hashlib
 import json
@@ -134,7 +135,7 @@ def register(minimal):
     )
 
     def after_call(event):
-        root = Path.cwd()
+        root = Path(event["ctx"].cwd)
         state = _state(root)
         wires = state["wires"]
         if not wires:

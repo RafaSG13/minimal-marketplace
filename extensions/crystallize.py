@@ -4,24 +4,26 @@
 and for calls you denied, and lets you keep them as a tool or a rule.
 """
 
-__version__ = "1.0"
+__version__ = "1.1"
+__requires__ = ">=0.2"
 
 import json
 import re
 from collections import Counter
 from pathlib import Path
 
-from minimal.api import ID_RE, SESSIONS_DIR, reload_summary, result_text
+from minimal.api import USER_DENIED, result_text
 
 STATE = ".minimal/state/crystallize.json"
 USAGE = "usage: /crystallize [all]"
-DENIED = "Error: the user denied the execution"
+DENIED = "Error: " + USER_DENIED
 SKIP_FIRST = {"ls", "cd", "pwd", "cat", "echo", "head", "tail", "grep", "rg", "find", "sed", "wc"}
 RULES_HEADING = "## Learned rules"
 
 TOOL_TEMPLATE = '''"""__NAME__: runs `__DOC__` (crystallized from __RUNS__ runs)."""
 
 __version__ = "1.0"
+__requires__ = ">=0.2"
 
 COMMAND = __COMMAND__
 
@@ -64,22 +66,12 @@ def _state(root):
     }
 
 
-def _messages(session_id):
-    messages = []
-    if not ID_RE.fullmatch(str(session_id)):
-        return messages
+def _messages(ctx, session_id):
     try:
-        with open(SESSIONS_DIR / f"{session_id}.jsonl", encoding="utf-8") as f:
-            for line in f:
-                try:
-                    message = json.loads(line)
-                except ValueError:
-                    continue
-                if isinstance(message, dict):
-                    messages.append(message)
-    except OSError:
-        pass
-    return messages
+        messages = ctx.read_session(str(session_id))
+    except (ValueError, OSError):
+        return []
+    return [m for m in messages if isinstance(m, dict)]
 
 
 def _rule_text(name, detail):
@@ -90,11 +82,11 @@ def _rule_text(name, detail):
     return f"Do not call {name} without asking first."
 
 
-def _scan(session_ids, known_tools, known_rules):
+def _scan(ctx, session_ids, known_tools, known_rules):
     runs, where = Counter(), {}
     denied, hints, texts = Counter(), {}, {}
     for sid in session_ids:
-        messages = _messages(sid)
+        messages = _messages(ctx, sid)
         uses = {}
         for mi, message in enumerate(messages):
             content = message.get("content")
@@ -152,9 +144,8 @@ def _crystallize(args, ctx):
     if not ids:
         if arg != "all":
             print("No sessions indexed for this project yet; scanning all sessions.")
-        folder = SESSIONS_DIR
-        ids = sorted(p.stem for p in folder.glob("*.jsonl")) if folder.is_dir() else []
-    habits, rules = _scan(ids, set(state["tools"].values()), set(state["rules"]))
+        ids = sorted(ctx.sessions())
+    habits, rules = _scan(ctx, ids, set(state["tools"].values()), set(state["rules"]))
     if not habits and not rules:
         print("Nothing to crystallize yet.")
         return
@@ -169,7 +160,7 @@ def _crystallize(args, ctx):
         )
         for i, r in enumerate(rules)
     ]
-    ticked = ctx.frontend.choose_many("Crystallize · tick what to keep", options)
+    ticked = ctx.ui.choose_many("Crystallize · tick what to keep", options)
     if ticked is None:
         print("Cancelled.")
         return
@@ -184,14 +175,14 @@ def _crystallize(args, ctx):
             continue
         habit = habits[int(index)]
         command = habit["command"]
-        name = ctx.frontend.ask_text(f"Tool name for: {command[:60]}")
+        name = ctx.ui.ask_text(f"Tool name for: {command[:60]}")
         name = name.strip() if isinstance(name, str) else None
         target = root / ".minimal" / "extensions" / "tools" / f"{name}.py"
         if name is None:
             print("Skipped: no name given")
         elif not re.fullmatch(r"[a-z][a-z0-9_]*", name):
             print(f"Skipped: {name!r} is not a valid tool name (use [a-z][a-z0-9_]*)")
-        elif name in ctx.registry.tools:
+        elif name in ctx.tools:
             print(f"Skipped: a tool named {name} already exists")
         elif target.exists():
             print(f"Skipped: {target.relative_to(root).as_posix()} already exists")
@@ -222,18 +213,18 @@ def _crystallize(args, ctx):
 
     _save(root / STATE, state)
     if wrote:
-        print(reload_summary(*ctx.reload_extensions()))
+        print(ctx.reload())
 
 
 def register(minimal):
     def on_turn_end(event):
         ctx = event.get("ctx")
-        if ctx is None or event["messages"] is not getattr(ctx, "messages", None):
+        if ctx is None or event.get("nested") or event["messages"] is not ctx.messages:
             return None
         root = Path(ctx.cwd)
         state = _state(root)
-        if ctx.session.id not in state["sessions"]:
-            state["sessions"].append(ctx.session.id)
+        if ctx.session_id not in state["sessions"]:
+            state["sessions"].append(ctx.session_id)
             _save(root / STATE, state)
         return None
 

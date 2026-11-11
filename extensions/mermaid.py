@@ -25,7 +25,7 @@ try:
 except ImportError:
     render_rich = None
 
-__version__ = "1.1"
+__version__ = "1.2"
 
 INSTALL_HINT = (
     "the mermaid extension needs termaid: run `uv pip install termaid` in minimal's environment "
@@ -137,7 +137,7 @@ class MermaidSupport(Widget):
 
 def register(minimal):
     if render_rich is None:
-        raise ImportError(INSTALL_HINT)
+        raise ImportError(INSTALL_HINT, name="termaid")
     minimal.register_widget("mermaid", lambda ctx: MermaidSupport(), area="bottom")
     minimal.append_system_prompt(
         "The terminal UI draws ```mermaid fenced code blocks as diagrams. When the user asks for a diagram, "

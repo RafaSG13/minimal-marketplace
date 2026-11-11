@@ -4,7 +4,8 @@
 many lines it may change; /fence off removes the fence.
 """
 
-__version__ = "1.0"
+__version__ = "1.1"
+__requires__ = ">=0.2"
 
 import json
 import shlex
@@ -159,7 +160,7 @@ def register(minimal):
     )
 
     def guard(event):
-        root = Path.cwd().resolve()
+        root = Path(event["ctx"].cwd).resolve()
         path = _state_path(root)
         fence = _load(path, None)
         if not fence:
@@ -199,7 +200,7 @@ def register(minimal):
     def after_bash(event):
         if event["name"] != "bash":
             return None
-        root = Path.cwd().resolve()
+        root = Path(event["ctx"].cwd).resolve()
         path = _state_path(root)
         fence = _load(path, None)
         before, mem["before"] = mem["before"], None

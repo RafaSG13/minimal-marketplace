@@ -3,7 +3,8 @@
 from textual.content import Content
 from textual.widgets import Static
 
-__version__ = "1.0"
+__version__ = "1.1"
+__requires__ = ">=0.2"
 
 # Model-name prefix -> USD per million tokens (input, output, cache_read, cache_write).
 # Checked 2026-11-10 against platform.claude.com/docs/en/about-claude/pricing,
@@ -57,13 +58,13 @@ def _tokens(n: int) -> str:
     return f"{n / 1e6:.1f}M"
 
 
-def _cost(ctx) -> float | None:
+def _cost(ctx, prices) -> float | None:
     """Estimated USD cost of the session so far, or None if the model has no known price."""
     model = ctx.model or ""
-    keys = [k for k in PRICES if model.startswith(k)]
+    keys = [k for k in prices if model.startswith(k)]
     if not keys:
         return None
-    p_in, p_out, p_cr, p_cw = PRICES[max(keys, key=len)]
+    p_in, p_out, p_cr, p_cw = prices[max(keys, key=len)]
     total = 0.0
     for u in _usages(ctx.messages):
         inp = u.get("input_tokens") or 0
@@ -76,6 +77,10 @@ def _cost(ctx) -> float | None:
 
 class TokenSparkline(Static):
     DEFAULT_CSS = "TokenSparkline { padding: 0 1; margin-bottom: 1; height: auto; }"
+
+    def __init__(self, prices) -> None:
+        super().__init__()
+        self.prices = prices
 
     def refresh_state(self, ctx) -> None:
         self._draw(ctx)
@@ -102,7 +107,7 @@ class TokenSparkline(Static):
                 f"in {_tokens(total_in)} · out {_tokens(total_out)} · cache {cache:.0%}", "$muted"
             ),
         ]
-        cost = _cost(ctx)
+        cost = _cost(ctx, self.prices)
         if cost is not None:
             lines.append(Content(f"≈ ${cost:.2f}"))
         self.update(Content("\n").join(lines))
@@ -110,9 +115,11 @@ class TokenSparkline(Static):
 
 
 def register(minimal):
-    minimal.register_widget("token_sparkline", lambda ctx: TokenSparkline(), area="sidebar")
+    settings = minimal.declare_settings({"prices": PRICES})
+    prices = {**PRICES, **settings["prices"]}
+    minimal.register_widget("token_sparkline", lambda ctx: TokenSparkline(prices), area="sidebar")
     minimal.register_status(
         "cost",
-        lambda ctx: f"≈${c:.2f}" if (c := _cost(ctx)) is not None else None,
+        lambda ctx: f"≈${c:.2f}" if (c := _cost(ctx, prices)) is not None else None,
         side="right",
     )

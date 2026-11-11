@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from textual.widget import Widget
 
-__version__ = "1.0"
+__version__ = "1.1"
+__requires__ = ">=0.2"
 
-DENSITY = "cozy"
+DENSITIES = ("cozy", "compact")
 """Transcript spacing: "cozy" keeps minimal's padding and gaps, "compact" removes the gaps between blocks."""
 
 CSS_COMMON = """
@@ -38,8 +39,12 @@ class StylePack(Widget):
 
     DEFAULT_CSS = "StylePack { display: none; }"
 
+    def __init__(self, density: str = "cozy") -> None:
+        super().__init__()
+        self.density = density
+
     def on_mount(self) -> None:
-        css = CSS_COMMON + (CSS_COMPACT if DENSITY == "compact" else "")
+        css = CSS_COMMON + (CSS_COMPACT if self.density == "compact" else "")
         self.app.stylesheet.add_source(css, read_from=("style_pack", "StylePack"), is_default_css=False)
         self.screen.add_class("-style-pack")
         self.app.refresh_css(animate=False)
@@ -50,4 +55,8 @@ class StylePack(Widget):
 
 
 def register(minimal):
-    minimal.register_widget("style_pack", lambda ctx: StylePack(), area="bottom")
+    settings = minimal.declare_settings({"density": "cozy"})
+    density = settings["density"]
+    if density not in DENSITIES:
+        raise ValueError(f"style_pack: density must be one of {', '.join(DENSITIES)}, not {density!r}")
+    minimal.register_widget("style_pack", lambda ctx: StylePack(density), area="bottom")

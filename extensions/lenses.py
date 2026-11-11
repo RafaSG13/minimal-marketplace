@@ -4,18 +4,13 @@ Long bash output is shortened (user lenses, built-in lenses, repeated lines,
 head and tail) and the full text is saved under .minimal/outputs/.
 """
 
-__version__ = "1.0"
+__version__ = "1.1"
+__requires__ = ">=0.2"
 
-import dataclasses
 import re
 import sys
 from pathlib import Path
 
-from minimal.tools import shell as core_shell  # monkeypatches bash's clip; not part of minimal.api
-
-MIN_CHARS = 2_000
-HEAD = 6_000
-TAIL = 12_000
 OUTPUT_DIR = ".minimal/outputs"
 LENS_DIR = ".minimal/lenses"
 
@@ -25,18 +20,6 @@ PASSING = (
     r"\S+ [.sx]+\s*(\[\s*\d+%\])?",
     r".* PASSED(\s+\[\s*\d+%\])?",
 )
-
-
-def _unclipped(run):
-    def wrapped(input, ctx):
-        saved = core_shell.clip
-        core_shell.clip = lambda text: text
-        try:
-            return run(input, ctx)
-        finally:
-            core_shell.clip = saved
-
-    return wrapped
 
 
 def _python_tests(command, output):
@@ -103,15 +86,15 @@ def _load_user_lenses(root):
 
 
 def register(minimal):
-    original = minimal.tools["bash"]
-    minimal.add_tool(dataclasses.replace(original, run=_unclipped(original.run)))
+    settings = minimal.declare_settings({"min_chars": 2000, "head": 6000, "tail": 12000})
+    min_chars, head, tail = settings["min_chars"], settings["head"], settings["tail"]
 
     user_lenses, errors = _load_user_lenses(Path.cwd())
     lenses = [*user_lenses, ("python-tests", r"\b(pytest|unittest)\b", _python_tests, "(built-in)")]
 
     def compress(event):
         raw = event["output"]
-        if event["name"] != "bash" or len(raw) < MIN_CHARS:
+        if event["name"] != "bash" or len(raw) < min_chars:
             return None
         command = event["input"].get("command", "")
         out = raw
@@ -128,13 +111,11 @@ def register(minimal):
                 break
         out = _repeat(out)
         last = raw.rstrip().splitlines()[-1] if raw.strip() else ""
-        if last.startswith("[exit ") and not out.rstrip().endswith(last):
-            out += "\n" + last
-        if len(out) > HEAD + TAIL:
-            out = out[:HEAD] + f"\n... [lens: {len(out) - HEAD - TAIL} characters omitted here]\n" + out[-TAIL:]
+        if len(out) > head + tail:
+            out = out[:head] + f"\n... [lens: {len(out) - head - tail} characters omitted here]\n" + out[-tail:]
         if out == raw:
             return None
-        n = _save_output(Path.cwd(), raw)
+        n = _save_output(event["ctx"].cwd, raw)
         out += (
             f"\n[full output: {OUTPUT_DIR}/{n:04d}.txt, {len(raw.splitlines())} lines; "
             "read it with offset and limit]"
@@ -145,7 +126,7 @@ def register(minimal):
     minimal.on("tool_result", compress)
 
     minimal.append_system_prompt(
-        "Output lenses: bash output over 2000 characters is compressed and the full text is saved under "
+        f"Output lenses: bash output over {min_chars} characters is compressed and the full text is saved under "
         ".minimal/outputs/ (read it with offset and limit when you need hidden lines). When a command you "
         "run repeatedly produces noisy output, write a lens: a file .minimal/lenses/<name>.py defining "
         "PATTERN (a regex searched in the command) and lens(command, output) -> str | None (return the "

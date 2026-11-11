@@ -4,7 +4,8 @@ A sidebar panel shows the heaviest tool results in the context; /prune drops
 chosen ones and continues in a new session (the old one stays on disk).
 """
 
-__version__ = "1.0"
+__version__ = "1.1"
+__requires__ = ">=0.2"
 
 import copy
 import json
@@ -13,7 +14,7 @@ from pathlib import Path
 
 from textual.widgets import Static
 
-from minimal.api import new_id, open_session, result_text
+from minimal.api import result_text
 
 STUB_PREFIX = "[pruned by the user"
 _read_at: dict[str, float] = {}
@@ -125,7 +126,7 @@ def register(minimal):
     def note_read(event):
         path = event["input"].get("path")
         if event["name"] == "read" and not event["is_error"] and isinstance(path, str):
-            _read_at[_resolve(Path.cwd(), path)] = time.time()
+            _read_at[_resolve(event["ctx"].cwd, path)] = time.time()
         return None
 
     minimal.on("tool_result", note_read)
@@ -144,7 +145,7 @@ def register(minimal):
             )
             for e in candidates
         ]
-        ticked = ctx.frontend.choose_many("Prune from context (heaviest first)", options)
+        ticked = ctx.ui.choose_many("Prune from context (heaviest first)", options)
         if ticked is None:
             print("Cancelled.")
             return
@@ -161,15 +162,11 @@ def register(minimal):
             )
         for message in new:
             message.pop("usage", None)
-        old = ctx.session
-        old.save()
-        ctx.session = open_session(new_id())
-        ctx.messages.extend(new)
-        ctx.session.save()
+        old = ctx.new_session(new)
         saved = sum(e["chars"] for e in chosen.values()) * per_char
         print(
             f"[prune] {len(chosen)} results pruned (~{saved / 1000:.1f}k tokens); "
-            f"now in session {ctx.session.id}; the full history stays in session {old.id}"
+            f"now in session {ctx.session_id}; the full history stays in session {old}"
         )
 
     minimal.register_command(

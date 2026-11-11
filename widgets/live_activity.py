@@ -5,7 +5,7 @@ import time
 from textual.content import Content
 from textual.widgets import Static
 
-from minimal import theme
+from minimal.api import theme
 
 __version__ = "1.0"
 

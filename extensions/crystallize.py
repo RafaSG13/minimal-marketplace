@@ -11,9 +11,7 @@ import re
 from collections import Counter
 from pathlib import Path
 
-from minimal import session as core_session
-from minimal.app import reload_summary
-from minimal.providers.base import result_text
+from minimal.api import ID_RE, SESSIONS_DIR, reload_summary, result_text
 
 STATE = ".minimal/state/crystallize.json"
 USAGE = "usage: /crystallize [all]"
@@ -68,10 +66,10 @@ def _state(root):
 
 def _messages(session_id):
     messages = []
-    if not core_session.ID_RE.fullmatch(str(session_id)):
+    if not ID_RE.fullmatch(str(session_id)):
         return messages
     try:
-        with open(core_session.SESSIONS_DIR / f"{session_id}.jsonl", encoding="utf-8") as f:
+        with open(SESSIONS_DIR / f"{session_id}.jsonl", encoding="utf-8") as f:
             for line in f:
                 try:
                     message = json.loads(line)
@@ -154,7 +152,7 @@ def _crystallize(args, ctx):
     if not ids:
         if arg != "all":
             print("No sessions indexed for this project yet; scanning all sessions.")
-        folder = core_session.SESSIONS_DIR
+        folder = SESSIONS_DIR
         ids = sorted(p.stem for p in folder.glob("*.jsonl")) if folder.is_dir() else []
     habits, rules = _scan(ids, set(state["tools"].values()), set(state["rules"]))
     if not habits and not rules:

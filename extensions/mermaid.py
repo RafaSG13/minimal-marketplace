@@ -17,7 +17,7 @@ from textual.widget import Widget
 from textual.widgets import Label
 from textual.widgets.markdown import Markdown, MarkdownFence
 
-from minimal import theme
+from minimal.api import theme
 
 try:
     from termaid import render_rich

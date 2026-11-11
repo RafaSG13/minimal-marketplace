@@ -41,7 +41,7 @@ def register(minimal):
     minimal.register_theme("ocean", dark=True, background="#0b1622", foreground="#d0e4f5", accent="#4fc3f7")
 ```
 
-See [`extensions/example.py`](extensions/example.py) for tools, commands, event hooks and widgets, and minimal's [extension guide](https://github.com/RafaSG13/Minimal/blob/main/docs/extensions.md) for the full API.
+See minimal's [`extensions/example.py`](https://github.com/RafaSG13/Minimal/blob/main/extensions/example.py) for tools, commands, event hooks and widgets, and its [extension guide](https://github.com/RafaSG13/Minimal/blob/main/docs/extensions.md) for the full API.
 
 ### Settings
 

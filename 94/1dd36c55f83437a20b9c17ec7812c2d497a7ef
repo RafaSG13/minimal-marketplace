@@ -1,0 +1,80 @@
+.github/workflows/check.yml
+  h_e81853c41416fb 16-17
+README.md
+  h_e81853c41416fb 29,38,85
+extensions/crystallize.py
+  h_e81853c41416fb 7-8,26
+extensions/ledger.py
+  h_e81853c41416fb 7-8
+extensions/lenses.py
+  h_e81853c41416fb 20-21
+extensions/loose_ends.py
+  h_e81853c41416fb 7-8
+extensions/mermaid.py
+  h_e81853c41416fb 28-29
+extensions/scope_fence.py
+  h_e81853c41416fb 7-8
+extensions/tripwire.py
+  h_e81853c41416fb 11-12
+themes/amber.py
+  h_e81853c41416fb 3-4
+themes/catppuccin.py
+  h_e81853c41416fb 3-4
+themes/catppuccin_latte.py
+  h_e81853c41416fb 3-4
+themes/cyberpunk.py
+  h_e81853c41416fb 3-4
+themes/dark.py
+  h_e81853c41416fb 3-4
+themes/dracula.py
+  h_e81853c41416fb 3-4
+themes/forest.py
+  h_e81853c41416fb 3-4
+themes/gruvbox.py
+  h_e81853c41416fb 3-4
+themes/light.py
+  h_e81853c41416fb 3-4
+themes/nord.py
+  h_e81853c41416fb 3-4
+themes/tokyo_night.py
+  h_e81853c41416fb 3-4
+widgets/animated_logo.py
+  h_e81853c41416fb 9-10
+widgets/callouts.py
+  h_e81853c41416fb 14-15
+widgets/command_menu.py
+  h_e81853c41416fb 1-183
+widgets/context_gauge.py
+  h_e81853c41416fb 6-7
+widgets/files_touched.py
+  h_e81853c41416fb 12-13
+widgets/git_panel.py
+  h_e81853c41416fb 13-14
+widgets/live_activity.py
+  h_e81853c41416fb 10-11
+widgets/logo.py
+  h_e81853c41416fb 3-4
+widgets/model_picker.py
+  h_e81853c41416fb 1-98
+widgets/plan_board.py
+  h_e81853c41416fb 8-9
+widgets/style_pack.py
+  h_e81853c41416fb 7-8
+widgets/token_sparkline.py
+  h_e81853c41416fb 6-7
+widgets/tool_timeline.py
+  h_e81853c41416fb 10-11
+widgets/transcript_minimap.py
+  h_e81853c41416fb 7-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "941dd36c55f83437a20b9c17ec7812c2d497a7ef",
+  "prompts": {},
+  "humans": {
+    "h_e81853c41416fb": {
+      "author": "RafaSG13 <rafasrrg13@gmail.com>"
+    }
+  }
+}

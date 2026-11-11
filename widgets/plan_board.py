@@ -5,7 +5,8 @@ from textual.widgets import Static
 
 from minimal.api import theme
 
-__version__ = "1.0"
+__version__ = "1.1"
+__api__ = "1"
 
 STATUSES = ("pending", "active", "done")
 MAX_STEPS = 20

@@ -1,6 +1,7 @@
 """Forest: calm dark green theme with moss and sage tones."""
 
-__version__ = "1.0"
+__version__ = "1.1"
+__api__ = "1"
 
 
 def register(minimal):

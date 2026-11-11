@@ -13,4 +13,5 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@v10.3.3
-      - run: uvx --from mnml-agent --with-requirements requirements-ci.txt minimal ext check .
+      # minimal's main branch: the API the next release ships, so a break shows up here first.
+      - run: uvx --from git+https://github.com/RafaSG13/Minimal@main --with-requirements requirements-ci.txt minimal ext check .

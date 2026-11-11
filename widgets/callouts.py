@@ -11,7 +11,8 @@ from textual.widgets import Static
 from textual.widgets._markdown import MarkdownBlockQuote, MarkdownParagraph
 from textual.widgets.markdown import Markdown
 
-__version__ = "1.0"
+__version__ = "1.1"
+__api__ = "1"
 
 KINDS = {
     "note": ("ⓘ", "Note", "$accent"),

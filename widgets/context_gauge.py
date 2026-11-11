@@ -3,8 +3,8 @@
 from textual.content import Content
 from textual.widgets import Static
 
-__version__ = "1.1"
-__requires__ = ">=0.2"
+__version__ = "1.2"
+__api__ = "1"
 
 DEFAULTS = {"limit": 200_000, "warn": 0.5, "crit": 0.8}
 """Context window size in tokens, and the fill fractions from which the bar turns warning / error."""

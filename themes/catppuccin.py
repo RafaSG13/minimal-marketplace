@@ -1,6 +1,7 @@
 """Catppuccin: Mocha, a soft pastel dark theme with a mauve accent."""
 
-__version__ = "1.0"
+__version__ = "1.1"
+__api__ = "1"
 
 
 def register(minimal):

@@ -17,8 +17,8 @@ trusted with /trust):
                 return {"output": "\\n".join(event["output"].splitlines()[-40:])}
 """
 
-__version__ = "2.0"
-__requires__ = ">=0.2"
+__version__ = "2.1"
+__api__ = "1"
 
 import re
 import sys

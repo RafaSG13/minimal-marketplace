@@ -4,8 +4,8 @@
 many lines it may change; /fence off removes the fence.
 """
 
-__version__ = "1.1"
-__requires__ = ">=0.2"
+__version__ = "1.2"
+__api__ = "1"
 
 import json
 import shlex

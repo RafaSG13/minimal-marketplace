@@ -1,6 +1,7 @@
 """Cyberpunk: near-black violet with neon pink and cyan."""
 
-__version__ = "1.0"
+__version__ = "1.1"
+__api__ = "1"
 
 
 def register(minimal):

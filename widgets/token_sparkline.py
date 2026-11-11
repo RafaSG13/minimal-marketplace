@@ -3,8 +3,8 @@
 from textual.content import Content
 from textual.widgets import Static
 
-__version__ = "1.1"
-__requires__ = ">=0.2"
+__version__ = "1.2"
+__api__ = "1"
 
 # Model-name prefix -> USD per million tokens (input, output, cache_read, cache_write).
 # Checked 2026-11-10 against platform.claude.com/docs/en/about-claude/pricing,

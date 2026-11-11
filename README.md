@@ -26,7 +26,7 @@ The category only groups items: any item may register anything. A folder and a f
 - **Name:** the file or folder name. Lowercase letters, digits and `_`, not starting with `_`. Unique within its folder. The extension id is `<name>` in `extensions/`, else `<category>/<name>` (e.g. `widgets/context_gauge`).
 - **Description:** the first line of the module docstring (required; `__init__.py` for packages).
 - **Version:** a top-level `__version__ = "1.0"` string (required). Bump it on every change so installed copies are offered the update.
-- **Compatibility:** an optional `__requires__ = ">=0.2"` with comma-separated clauses (`>=`, `<=`, `==`, `!=`, `>`, `<`), e.g. `">=0.2,<0.4"`. Set it whenever the item uses the 0.2 extension API. Incompatible items are not installed.
+- **API:** a top-level `__api__ = "1"` string (required): the [minimal API version](https://github.com/RafaSG13/Minimal/blob/main/docs/extensions.md#api-versions) the item is written for. `"1"` runs on any 1.x, `"1.2"` on 1.2 or a later 1.x. minimal does not load an item without it, or one written for another major version, and `/ext` does not install it.
 - The item must define a top-level `register(minimal)` function. Import only from `minimal.api`; everything else in minimal is internal.
 
 A theme needs only `background`, `foreground` and `accent`; minimal derives the other colours:
@@ -35,6 +35,7 @@ A theme needs only `background`, `foreground` and `accent`; minimal derives the 
 """Ocean: deep blue dark theme."""
 
 __version__ = "1.0"
+__api__ = "1"
 
 
 def register(minimal):
@@ -81,6 +82,6 @@ Before opening a pull request, validate every item from the repository root:
 minimal ext check .
 ```
 
-It prints `ok`, `WARN` (an optional dependency is missing, e.g. `needs termaid`) or `FAIL` per item and exits non-zero on any `FAIL`. CI runs the same check on every pull request.
+It prints `ok`, `WARN` (an optional dependency is missing, e.g. `needs termaid`) or `FAIL` per item and exits non-zero on any `FAIL`. CI runs the same check on every pull request, with minimal's current `main`, so an item that the next minimal API would break fails here before that minimal is released.
 
 If your item imports a third-party package (like `mermaid` and `termaid`), add it to `requirements-ci.txt` in the same pull request. CI installs that file before the check, so the item is really loaded and validated; without it the check fails or can only warn that it did not load the item.

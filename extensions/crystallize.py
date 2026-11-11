@@ -4,8 +4,8 @@
 and for calls you denied, and lets you keep them as a tool or a rule.
 """
 
-__version__ = "1.1"
-__requires__ = ">=0.2"
+__version__ = "1.2"
+__api__ = "1"
 
 import json
 import re
@@ -23,7 +23,7 @@ RULES_HEADING = "## Learned rules"
 TOOL_TEMPLATE = '''"""__NAME__: runs `__DOC__` (crystallized from __RUNS__ runs)."""
 
 __version__ = "1.0"
-__requires__ = ">=0.2"
+__api__ = "1"
 
 COMMAND = __COMMAND__
 

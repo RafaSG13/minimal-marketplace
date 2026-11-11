@@ -4,7 +4,8 @@ from textual.content import Content
 from textual.css.query import NoMatches
 from textual.widgets import Static
 
-__version__ = "1.0"
+__version__ = "1.1"
+__api__ = "1"
 
 COLS = 15
 """Cells per row; each cell is two columns wide."""

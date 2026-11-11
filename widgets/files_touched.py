@@ -9,7 +9,8 @@ from pathlib import Path
 from textual.content import Content
 from textual.widgets import Static
 
-__version__ = "1.0"
+__version__ = "1.1"
+__api__ = "1"
 
 ROWS = 12
 """Most files listed, most recently touched first."""

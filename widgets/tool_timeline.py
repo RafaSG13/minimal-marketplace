@@ -7,7 +7,8 @@ from collections import Counter
 from textual.content import Content
 from textual.widgets import Static
 
-__version__ = "1.0"
+__version__ = "1.1"
+__api__ = "1"
 
 TURNS = 8
 """Most recent turns shown, one row each."""

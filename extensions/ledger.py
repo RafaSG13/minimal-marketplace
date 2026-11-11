@@ -4,8 +4,8 @@ A sidebar panel shows the heaviest tool results in the context; /prune drops
 chosen ones and continues in a new session (the old one stays on disk).
 """
 
-__version__ = "1.1"
-__requires__ = ">=0.2"
+__version__ = "1.2"
+__api__ = "1"
 
 import copy
 import json

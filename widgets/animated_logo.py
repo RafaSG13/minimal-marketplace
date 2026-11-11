@@ -6,7 +6,8 @@ from textual.widgets import Static
 
 from minimal.api import LogoSpec, logo_content
 
-__version__ = "1.0"
+__version__ = "1.1"
+__api__ = "1"
 
 GRADIENT = ["#f25fc4", "#d861d9", "#b665ea", "#9370f2", "#6f86f4", "#4fa1f2", "#3bb7ec"]
 """Colours of the M, from its top-left corner to its bottom-right one."""

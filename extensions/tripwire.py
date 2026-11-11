@@ -2,9 +2,13 @@
 
 /tripwire add <command> registers an invariant; after every call that changes
 files it is re-run and a [tripwire] note is appended to the tool result.
+
+The invariants are commands that run on your machine, so they are kept in
+~/.minimal/state/tripwire/ (one file per project directory), never in the repository:
+a repository must not be able to choose what runs when you open it.
 """
 
-__version__ = "1.1"
+__version__ = "2.0"
 __requires__ = ">=0.2"
 
 import hashlib
@@ -15,8 +19,13 @@ from pathlib import Path
 from textual.widgets import Static
 
 GIT_SCOPE = ("--", ".", ":(exclude).minimal")
-STATE = ".minimal/state/tripwires.json"
 USAGE = "usage: /tripwire add <command> | rm <n> | run"
+
+
+def _state_file(root):
+    """The project's state: ``~/.minimal/state/tripwire/<hash of its directory>.json``, outside the repository."""
+    key = hashlib.sha256(str(Path(root).resolve()).encode()).hexdigest()[:16]
+    return Path.home() / ".minimal" / "state" / "tripwire" / f"{key}.json"
 
 
 def _git(cwd, *args):
@@ -34,14 +43,15 @@ def _load(path, default):
         return default
 
 
-def _save(path, data):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+def _save(root, data):
+    path = _state_file(root)
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path.write_text(json.dumps({**data, "project": str(Path(root).resolve())}, indent=2), encoding="utf-8")
+    path.chmod(0o600)
 
 
 def _state(root):
-    data = _load(Path(root, STATE), None)
+    data = _load(_state_file(root), None)
     if not isinstance(data, dict) or not isinstance(data.get("wires"), list):
         return {"wires": [], "edits_since_green": 0}
     data.setdefault("edits_since_green", 0)
@@ -112,20 +122,20 @@ def register(minimal):
             ok, tail = _run_wire(rest, root)
             wires.append({"cmd": rest, "ok": ok, "tail": tail})
             mem["fp"] = _fingerprint(root)
-            _save(root / STATE, state)
+            _save(root, state)
             print(f"Tripwire added: {rest} ({'passing' if ok else 'failing'} now)")
         elif verb == "rm":
             if not rest.isdecimal() or not 1 <= int(rest) <= len(wires):
                 raise ValueError(f"no tripwire {rest}")
             removed = wires.pop(int(rest) - 1)
-            _save(root / STATE, state)
+            _save(root, state)
             print(f"Tripwire removed: {removed['cmd']}")
         elif verb == "run":
             for w in wires:
                 w["ok"], w["tail"] = _run_wire(w["cmd"], root)
             state["edits_since_green"] = 0 if all(w["ok"] for w in wires) else state["edits_since_green"] + 1
             mem["fp"] = _fingerprint(root)
-            _save(root / STATE, state)
+            _save(root, state)
             print(_listing(wires))
         else:
             raise ValueError(USAGE)
@@ -158,7 +168,7 @@ def register(minimal):
             elif before is False and w["ok"]:
                 notes.append(f'[tripwire] "{w["cmd"]}" passes again')
         state["edits_since_green"] = 0 if all(w["ok"] for w in wires) else state["edits_since_green"] + 1
-        _save(root / STATE, state)
+        _save(root, state)
         if not notes:
             return None
         event["output"] += "".join(f"\n{n}" for n in notes)

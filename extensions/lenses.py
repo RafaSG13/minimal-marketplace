@@ -1,10 +1,23 @@
 """Output lenses: compress noisy bash output and keep the full text on disk.
 
-Long bash output is shortened (user lenses, built-in lenses, repeated lines,
-head and tail) and the full text is saved under .minimal/outputs/.
+Long bash output is shortened (built-in lenses, repeated lines, head and tail) and the
+full text is saved under .minimal/outputs/. That folder holds data only: nothing inside
+the repository is ever executed by this extension.
+
+A lens for your own command is an extension that rewrites bash output in a tool_result
+handler, installed like any other (/ext, or .minimal/extensions/ once the project is
+trusted with /trust):
+
+    import re
+
+    def register(minimal):
+        @minimal.on("tool_result")
+        def shorten(event):
+            if event["name"] == "bash" and re.search(r"\\bmake\\b", event["input"].get("command", "")):
+                return {"output": "\\n".join(event["output"].splitlines()[-40:])}
 """
 
-__version__ = "1.1"
+__version__ = "2.0"
 __requires__ = ">=0.2"
 
 import re
@@ -12,7 +25,6 @@ import sys
 from pathlib import Path
 
 OUTPUT_DIR = ".minimal/outputs"
-LENS_DIR = ".minimal/lenses"
 
 PASSING = (
     r".* \.\.\. ok",
@@ -67,30 +79,11 @@ def _save_output(root, raw):
     return n
 
 
-def _load_user_lenses(root):
-    lenses, errors = [], []
-    folder = Path(root, LENS_DIR)
-    for file in sorted(folder.glob("*.py")) if folder.is_dir() else []:
-        try:
-            namespace = {"__name__": f"lens_{file.stem}", "__file__": str(file)}
-            exec(compile(file.read_text(encoding="utf-8"), str(file), "exec"), namespace)
-            pattern, lens = namespace.get("PATTERN"), namespace.get("lens")
-            if not isinstance(pattern, str) or not callable(lens):
-                raise ValueError("must define PATTERN (str) and lens(command, output)")
-            re.compile(pattern)
-        except Exception as e:
-            errors.append(f"{file.name}: {e}")
-            continue
-        lenses.append((file.stem, pattern, lens, f"{LENS_DIR}/{file.name}"))
-    return lenses, errors
-
-
 def register(minimal):
     settings = minimal.declare_settings({"min_chars": 2000, "head": 6000, "tail": 12000})
     min_chars, head, tail = settings["min_chars"], settings["head"], settings["tail"]
 
-    user_lenses, errors = _load_user_lenses(Path.cwd())
-    lenses = [*user_lenses, ("python-tests", r"\b(pytest|unittest)\b", _python_tests, "(built-in)")]
+    lenses = [("python-tests", r"\b(pytest|unittest)\b", _python_tests, "(built-in)")]
 
     def compress(event):
         raw = event["output"]
@@ -127,10 +120,7 @@ def register(minimal):
 
     minimal.append_system_prompt(
         f"Output lenses: bash output over {min_chars} characters is compressed and the full text is saved under "
-        ".minimal/outputs/ (read it with offset and limit when you need hidden lines). When a command you "
-        "run repeatedly produces noisy output, write a lens: a file .minimal/lenses/<name>.py defining "
-        "PATTERN (a regex searched in the command) and lens(command, output) -> str | None (return the "
-        "shortened output, or None to leave it unchanged), then call reload_extensions."
+        ".minimal/outputs/ (read it with offset and limit when you need hidden lines)."
     )
 
     def lenses_command(args, ctx):
@@ -150,6 +140,3 @@ def register(minimal):
     minimal.register_command(
         "lenses", lenses_command, description="list output lenses; /lenses clear deletes saved outputs"
     )
-
-    if errors:
-        raise ValueError("lenses: " + "; ".join(errors))

@@ -5,8 +5,7 @@ files it is re-run and a [tripwire] note is appended to the tool result.
 
 The invariants are commands that run on your machine, so they are kept in
 ~/.minimal/state/tripwire/ (one file per project directory), never in the repository:
-a repository must not be able to choose what runs when you open it. Before 2.0 they
-lived in .minimal/state/tripwires.json inside the project; that file is ignored now.
+a repository must not be able to choose what runs when you open it.
 """
 
 __version__ = "2.0"
@@ -15,13 +14,11 @@ __requires__ = ">=0.2"
 import hashlib
 import json
 import subprocess
-import sys
 from pathlib import Path
 
 from textual.widgets import Static
 
 GIT_SCOPE = ("--", ".", ":(exclude).minimal")
-LEGACY_STATE = ".minimal/state/tripwires.json"
 USAGE = "usage: /tripwire add <command> | rm <n> | run"
 
 
@@ -109,13 +106,6 @@ class TripwireWidget(Static):
 
 
 def register(minimal):
-    legacy = Path.cwd() / LEGACY_STATE
-    if legacy.is_file():
-        print(
-            f"[tripwire] {LEGACY_STATE} is ignored: a repository must not choose commands to run. "
-            "Add your own with /tripwire add.",
-            file=sys.stderr,
-        )
     mem = {"fp": _fingerprint(Path.cwd()) if _state(Path.cwd())["wires"] else None}
 
     def tripwire(args, ctx):

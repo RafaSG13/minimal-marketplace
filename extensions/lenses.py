@@ -15,9 +15,6 @@ trusted with /trust):
         def shorten(event):
             if event["name"] == "bash" and re.search(r"\\bmake\\b", event["input"].get("command", "")):
                 return {"output": "\\n".join(event["output"].splitlines()[-40:])}
-
-Before 2.0 this extension also ran .minimal/lenses/*.py from the repository, so opening a
-repository was enough to run its code. That folder is no longer read.
 """
 
 __version__ = "2.0"
@@ -28,7 +25,6 @@ import sys
 from pathlib import Path
 
 OUTPUT_DIR = ".minimal/outputs"
-LEGACY_LENS_DIR = ".minimal/lenses"
 
 PASSING = (
     r".* \.\.\. ok",
@@ -88,13 +84,6 @@ def register(minimal):
     min_chars, head, tail = settings["min_chars"], settings["head"], settings["tail"]
 
     lenses = [("python-tests", r"\b(pytest|unittest)\b", _python_tests, "(built-in)")]
-    legacy = Path.cwd() / LEGACY_LENS_DIR
-    if legacy.is_dir() and any(legacy.glob("*.py")):
-        print(
-            f"[lenses] {LEGACY_LENS_DIR}/ is no longer read: a repository must not run code just by being opened. "
-            "Install the lens as an extension instead (see the lenses docstring).",
-            file=sys.stderr,
-        )
 
     def compress(event):
         raw = event["output"]

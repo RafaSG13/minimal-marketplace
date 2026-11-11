@@ -10,7 +10,8 @@ from textual.widgets import Static
 
 from minimal.api import theme
 
-__version__ = "1.0"
+__version__ = "1.1"
+__api__ = "1"
 
 ROWS = 8
 """Most changed files listed."""

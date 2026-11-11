@@ -8,8 +8,8 @@ The invariants are commands that run on your machine, so they are kept in
 a repository must not be able to choose what runs when you open it.
 """
 
-__version__ = "2.0"
-__requires__ = ">=0.2"
+__version__ = "2.1"
+__api__ = "1"
 
 import hashlib
 import json

@@ -1,6 +1,7 @@
 """Nord: arctic, north-bluish dark theme."""
 
-__version__ = "1.0"
+__version__ = "1.1"
+__api__ = "1"
 
 
 def register(minimal):

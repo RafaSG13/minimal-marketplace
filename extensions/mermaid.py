@@ -25,7 +25,8 @@ try:
 except ImportError:
     render_rich = None
 
-__version__ = "1.2"
+__version__ = "1.3"
+__api__ = "1"
 
 INSTALL_HINT = (
     "the mermaid extension needs termaid: run `uv pip install termaid` in minimal's environment "

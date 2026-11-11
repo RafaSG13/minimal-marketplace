@@ -4,8 +4,8 @@ The model records what it could not verify, noticed or left undone with the
 note tool; /ends lets you review the backlog and close the finished items.
 """
 
-__version__ = "1.1"
-__requires__ = ">=0.2"
+__version__ = "1.2"
+__api__ = "1"
 
 import json
 from datetime import datetime, timezone

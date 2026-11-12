@@ -2,8 +2,8 @@
 
 Diagrams are drawn with termaid as Unicode box art (flowchart, sequence, class, ER, state,
 gantt, pie, mindmap, …) and redrawn line by line while a reply streams. A block that can't be
-drawn shows its source with the error under it. Requires termaid: run `uv pip install termaid`
-in minimal's environment, or start minimal with `uv run --with termaid minimal`.
+drawn shows its source with the error under it. Needs termaid: `/ext` offers to install it into
+minimal's Python.
 """
 
 from __future__ import annotations
@@ -25,8 +25,9 @@ try:
 except ImportError:
     render_rich = None
 
-__version__ = "1.3"
+__version__ = "1.4"
 __api__ = "1"
+__dependencies__ = ["termaid>=0.12"]
 
 INSTALL_HINT = (
     "the mermaid extension needs termaid: run `uv pip install termaid` in minimal's environment "

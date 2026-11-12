@@ -4,8 +4,8 @@
 and for calls you denied, and lets you keep them as a tool or a rule.
 """
 
-__version__ = "1.2"
-__api__ = "1"
+__version__ = "1.3"
+__api__ = "1.1"
 
 import json
 import re
@@ -14,7 +14,7 @@ from pathlib import Path
 
 from minimal.api import USER_DENIED, result_text
 
-STATE = ".minimal/state/crystallize.json"
+STATE_FILE = None
 USAGE = "usage: /crystallize [all]"
 DENIED = "Error: " + USER_DENIED
 SKIP_FIRST = {"ls", "cd", "pwd", "cat", "echo", "head", "tail", "grep", "rg", "find", "sed", "wc"}
@@ -55,8 +55,8 @@ def _save(path, data):
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
-def _state(root):
-    data = _load(Path(root, STATE), None)
+def _state():
+    data = _load(STATE_FILE, None)
     if not isinstance(data, dict):
         data = {}
     return {
@@ -139,7 +139,7 @@ def _crystallize(args, ctx):
     if arg not in ("", "all"):
         raise ValueError(USAGE)
     root = Path(ctx.cwd)
-    state = _state(root)
+    state = _state()
     ids = [] if arg == "all" else state["sessions"]
     if not ids:
         if arg != "all":
@@ -211,21 +211,23 @@ def _crystallize(args, ctx):
         state["rules"].extend(r["key"] for r in chosen)
         print(f"Added {len(chosen)} rule(s) to AGENTS.md")
 
-    _save(root / STATE, state)
+    _save(STATE_FILE, state)
     if wrote:
         print(ctx.reload())
 
 
 def register(minimal):
+    global STATE_FILE
+    STATE_FILE = minimal.data_dir() / "state.json"
+
     def on_turn_end(event):
         ctx = event.get("ctx")
         if ctx is None or event.get("nested") or event["messages"] is not ctx.messages:
             return None
-        root = Path(ctx.cwd)
-        state = _state(root)
+        state = _state()
         if ctx.session_id not in state["sessions"]:
             state["sessions"].append(ctx.session_id)
-            _save(root / STATE, state)
+            _save(STATE_FILE, state)
         return None
 
     minimal.on("turn_end", on_turn_end)

@@ -1,6 +1,6 @@
 # minimal-marketplace
 
-Extensions for [minimal](https://github.com/RafaSG13/Minimal), the terminal coding-agent harness. Requires minimal 0.3 or later.
+Extensions for [minimal](https://github.com/RafaSG13/Minimal), the terminal coding-agent harness. Requires minimal 0.4 or later.
 
 ## Layout
 
@@ -84,4 +84,4 @@ minimal ext check .
 
 It prints `ok`, `WARN` (an optional dependency is missing, e.g. `needs termaid`) or `FAIL` per item and exits non-zero on any `FAIL`. CI runs the same check on every pull request, with minimal's current `main`, so an item that the next minimal API would break fails here before that minimal is released.
 
-If your item imports a third-party package (like `mermaid` and `termaid`), add it to `requirements-ci.txt` in the same pull request. CI installs that file before the check, so the item is really loaded and validated; without it the check fails or can only warn that it did not load the item.
+If your item imports a third-party package (like `mermaid` and `termaid`), declare it in the item: `__dependencies__ = ["termaid>=0.12"]`. `/ext` offers to install it, and CI runs `minimal ext check --install-deps`, so the item is really loaded and validated.

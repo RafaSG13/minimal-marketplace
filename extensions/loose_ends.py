@@ -4,8 +4,8 @@ The model records what it could not verify, noticed or left undone with the
 note tool; /ends lets you review the backlog and close the finished items.
 """
 
-__version__ = "1.2"
-__api__ = "1"
+__version__ = "1.3"
+__api__ = "1.1"
 
 import json
 from datetime import datetime, timezone
@@ -13,7 +13,7 @@ from pathlib import Path
 
 from textual.widgets import Static
 
-STATE = ".minimal/state/loose_ends.json"
+STATE_FILE = None
 KINDS = ("unverified", "noticed", "followup")
 GLYPHS = {"unverified": "?", "noticed": "!", "followup": "→"}
 
@@ -31,8 +31,8 @@ def _save(path, data):
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
-def _items(root):
-    data = _load(Path(root, STATE), {})
+def _items():
+    data = _load(STATE_FILE, {})
     items = data.get("items") if isinstance(data, dict) else None
     return items if isinstance(items, list) else []
 
@@ -45,7 +45,7 @@ def _note(input, ctx):
         raise ValueError("text must be a non-empty string")
     if path is not None and not isinstance(path, str):
         raise ValueError("path must be a string")
-    items = _items(ctx.cwd)
+    items = _items()
     new_id = max((i["id"] for i in items), default=0) + 1
     items.append(
         {
@@ -58,7 +58,7 @@ def _note(input, ctx):
             "done": False,
         }
     )
-    _save(Path(ctx.cwd, STATE), {"items": items})
+    _save(STATE_FILE, {"items": items})
     return f"Noted #{new_id}"
 
 
@@ -68,7 +68,7 @@ class LooseEndsWidget(Static):
     DEFAULT_CSS = "LooseEndsWidget { padding: 0 1; }"
 
     def refresh_state(self, ctx):
-        open_items = [i for i in _items(ctx.cwd) if not i.get("done")]
+        open_items = [i for i in _items() if not i.get("done")]
         if not open_items:
             self.display = False
             return
@@ -80,6 +80,8 @@ class LooseEndsWidget(Static):
 
 
 def register(minimal):
+    global STATE_FILE
+    STATE_FILE = minimal.data_dir() / "state.json"
     minimal.register_tool(
         name="note",
         description=(
@@ -108,7 +110,7 @@ def register(minimal):
     minimal.register_widget("loose_ends", lambda ctx: LooseEndsWidget(markup=False), area="sidebar")
 
     def ends(args, ctx):
-        items = _items(ctx.cwd)
+        items = _items()
         open_items = [i for i in items if not i.get("done")]
         if not open_items:
             print("No loose ends.")
@@ -126,7 +128,7 @@ def register(minimal):
             if str(item["id"]) in ticked:
                 item["done"] = True
                 closed += 1
-        _save(Path(ctx.cwd, STATE), {"items": items})
+        _save(STATE_FILE, {"items": items})
         print(f"Closed {closed} loose end(s).")
 
     minimal.register_command("ends", ends, description="review loose ends and close the finished ones")

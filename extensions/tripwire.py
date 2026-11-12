@@ -4,12 +4,12 @@
 files it is re-run and a [tripwire] note is appended to the tool result.
 
 The invariants are commands that run on your machine, so they are kept in
-~/.minimal/state/tripwire/ (one file per project directory), never in the repository:
+minimal's data folder for this project (`minimal.data_dir()`), never in the repository:
 a repository must not be able to choose what runs when you open it.
 """
 
-__version__ = "2.1"
-__api__ = "1"
+__version__ = "2.2"
+__api__ = "1.1"
 
 import hashlib
 import json
@@ -22,10 +22,7 @@ GIT_SCOPE = ("--", ".", ":(exclude).minimal")
 USAGE = "usage: /tripwire add <command> | rm <n> | run"
 
 
-def _state_file(root):
-    """The project's state: ``~/.minimal/state/tripwire/<hash of its directory>.json``, outside the repository."""
-    key = hashlib.sha256(str(Path(root).resolve()).encode()).hexdigest()[:16]
-    return Path.home() / ".minimal" / "state" / "tripwire" / f"{key}.json"
+STATE_FILE = None
 
 
 def _git(cwd, *args):
@@ -44,14 +41,14 @@ def _load(path, default):
 
 
 def _save(root, data):
-    path = _state_file(root)
+    path = STATE_FILE
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     path.write_text(json.dumps({**data, "project": str(Path(root).resolve())}, indent=2), encoding="utf-8")
     path.chmod(0o600)
 
 
-def _state(root):
-    data = _load(_state_file(root), None)
+def _state():
+    data = _load(STATE_FILE, None)
     if not isinstance(data, dict) or not isinstance(data.get("wires"), list):
         return {"wires": [], "edits_since_green": 0}
     data.setdefault("edits_since_green", 0)
@@ -88,7 +85,7 @@ class TripwireWidget(Static):
     DEFAULT_CSS = "TripwireWidget { height: 1; padding: 0 1; }"
 
     def refresh_state(self, ctx):
-        state = _state(Path(ctx.cwd))
+        state = _state()
         wires = state["wires"]
         if not wires:
             self.display = False
@@ -106,11 +103,21 @@ class TripwireWidget(Static):
 
 
 def register(minimal):
-    mem = {"fp": _fingerprint(Path.cwd()) if _state(Path.cwd())["wires"] else None}
+    global STATE_FILE
+    STATE_FILE = minimal.data_dir() / "state.json"
+    legacy = Path.home() / ".minimal" / "state" / "tripwire" / (
+        hashlib.sha256(str(Path.cwd().resolve()).encode()).hexdigest()[:16] + ".json"
+    )
+    try:
+        if legacy.is_file() and not STATE_FILE.exists():
+            legacy.replace(STATE_FILE)
+    except OSError:
+        pass
+    mem = {"fp": _fingerprint(Path.cwd()) if _state()["wires"] else None}
 
     def tripwire(args, ctx):
         root = Path(ctx.cwd)
-        state = _state(root)
+        state = _state()
         wires = state["wires"]
         verb, _, rest = args.strip().partition(" ")
         rest = rest.strip()
@@ -146,7 +153,7 @@ def register(minimal):
 
     def after_call(event):
         root = Path(event["ctx"].cwd)
-        state = _state(root)
+        state = _state()
         wires = state["wires"]
         if not wires:
             return None

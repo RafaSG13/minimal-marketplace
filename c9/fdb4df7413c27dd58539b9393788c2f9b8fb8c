@@ -1,0 +1,30 @@
+.github/workflows/check.yml
+  h_e81853c41416fb 17
+README.md
+  h_e81853c41416fb 3,87
+extensions/compact.py
+  h_e81853c41416fb 7-11,20-21,42-64,111-154,161-172,181-184
+extensions/crystallize.py
+  h_e81853c41416fb 7-8,17,58-59,142,214,220-222,227,230
+extensions/loose_ends.py
+  h_e81853c41416fb 7-8,16,34-35,48,61,71,83-84,113,131
+extensions/mermaid.py
+  h_e81853c41416fb 5-6,28,30
+extensions/retry.py
+  h_e81853c41416fb 1-104
+extensions/scope_fence.py
+  h_e81853c41416fb 7-8,20,105,121-122,126,162,202
+extensions/tripwire.py
+  h_e81853c41416fb 7,11-12,25,44,50-51,88,106-116,120,156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "c9fdb4df7413c27dd58539b9393788c2f9b8fb8c",
+  "prompts": {},
+  "humans": {
+    "h_e81853c41416fb": {
+      "author": "RafaSG13 <rafasrrg13@gmail.com>"
+    }
+  }
+}

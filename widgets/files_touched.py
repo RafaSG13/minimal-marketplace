@@ -9,7 +9,7 @@ from pathlib import Path
 from textual.content import Content
 from textual.widgets import Static
 
-__version__ = "1.1"
+__version__ = "1.2"
 __api__ = "1"
 
 ROWS = 12
@@ -84,9 +84,13 @@ def _files(messages: list[dict], cwd: Path, live: dict[str, bool]) -> dict[Path,
                 stats["reads"] += 1
             elif name == "edit":
                 stats["edits"] += 1
-                added, removed = _edit_counts(str(inp.get("old_string", "")), str(inp.get("new_string", "")))
-                stats["added"] += added
-                stats["removed"] += removed
+                # One replacement (old_string/new_string) or, since minimal 0.5, several (edits).
+                replacements = inp["edits"] if isinstance(inp.get("edits"), list) else [inp]
+                for e in replacements:
+                    if isinstance(e, dict):
+                        added, removed = _edit_counts(str(e.get("old_string", "")), str(e.get("new_string", "")))
+                        stats["added"] += added
+                        stats["removed"] += removed
             else:
                 stats["writes"] += 1
                 stats["added"] += len(str(inp.get("content", "")).splitlines())

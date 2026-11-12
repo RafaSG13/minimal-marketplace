@@ -4,8 +4,8 @@
 many lines it may change; /fence off removes the fence.
 """
 
-__version__ = "1.2"
-__api__ = "1"
+__version__ = "1.3"
+__api__ = "1.1"
 
 import json
 import shlex
@@ -17,7 +17,7 @@ from textual.widgets import Static
 from minimal.api import glob_regex
 
 GIT_SCOPE = ("--", ".", ":(exclude).minimal")
-STATE = ".minimal/state/fence.json"
+STATE_FILE = None
 USAGE = "usage: /fence <path-or-glob>... [--lines N] | /fence off"
 
 
@@ -40,10 +40,6 @@ def _save(path, data):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-
-
-def _state_path(root):
-    return Path(root, STATE)
 
 
 def _summary(fence):
@@ -106,7 +102,7 @@ class FenceWidget(Static):
     DEFAULT_CSS = "FenceWidget { padding: 0 1; }"
 
     def refresh_state(self, ctx):
-        fence = _load(_state_path(Path(ctx.cwd)), None)
+        fence = _load(STATE_FILE, None)
         if not fence:
             self.display = False
             return
@@ -122,10 +118,12 @@ class FenceWidget(Static):
 
 
 def register(minimal):
+    global STATE_FILE
+    STATE_FILE = minimal.data_dir() / "state.json"
     mem = {"before": None}
 
     def fence_command(args, ctx):
-        path = _state_path(ctx.cwd)
+        path = STATE_FILE
         tokens = shlex.split(args)
         if not tokens:
             fence = _load(path, None)
@@ -161,7 +159,7 @@ def register(minimal):
 
     def guard(event):
         root = Path(event["ctx"].cwd).resolve()
-        path = _state_path(root)
+        path = STATE_FILE
         fence = _load(path, None)
         if not fence:
             return None
@@ -201,7 +199,7 @@ def register(minimal):
         if event["name"] != "bash":
             return None
         root = Path(event["ctx"].cwd).resolve()
-        path = _state_path(root)
+        path = STATE_FILE
         fence = _load(path, None)
         before, mem["before"] = mem["before"], None
         if not fence or before is None:

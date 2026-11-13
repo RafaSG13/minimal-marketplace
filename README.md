@@ -31,6 +31,7 @@ Each item can go into your global folder (`~/.minimal/extensions/`, every projec
 | ---- | ------------ |
 | `compact` | Summarises the history into a new session when the context reaches a threshold, also in the middle of a long turn; adds `/compact`. |
 | `crystallize` | Turns commands the model runs again and again into tools, and the calls you deny into `AGENTS.md` rules (`/crystallize`). |
+| `go_tui` | A second terminal UI written in Go with Bubble Tea, Bubbles and Lip Gloss: `minimal --ui go`. A package with the Go source, built on first run with your Go toolchain (1.26 or later). |
 | `ledger` | A sidebar panel of the heaviest tool results in the context, flagging stale reads; `/prune` drops the ones you pick and continues in a new session. |
 | `lenses` | Shortens long `bash` output (passing Python test lines, repeated lines, head and tail) and keeps the full text in `.minimal/outputs/`. |
 | `loose_ends` | A `note` tool and backlog for what the model could not verify, noticed or left to do; `/ends` reviews it. |

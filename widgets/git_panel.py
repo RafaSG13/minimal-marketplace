@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import re
 import subprocess
-
-from textual.content import Content
-from textual.widgets import Static
+import threading
+import time
 
 from minimal.api import theme
 
-__version__ = "1.1"
-__api__ = "1"
+__version__ = "1.2"
+__api__ = "1.3"
 
 ROWS = 8
 """Most changed files listed."""
@@ -23,13 +22,13 @@ GIT = ["git", "-c", "core.fsmonitor=false", "--no-optional-locks"]
 """git without fsmonitor (a repository's config must not run commands) and without taking locks."""
 
 
-def _diff_bar(added: int, removed: int, cells: int = 5) -> Content:
-    """``cells`` blocks split between added (green) and removed (red) lines."""
+def _diff_bar(added: int, removed: int, cells: int = 5) -> list:
+    """Pieces for ``cells`` blocks split between added (green) and removed (red) lines."""
     total = added + removed
     if not total:
-        return Content.styled("·" * cells, "$dim")
+        return [("·" * cells, "dim")]
     plus = round(cells * added / total)
-    return Content.assemble(("█" * plus, "$diff-added"), ("█" * (cells - plus), "$diff-removed"))
+    return [("█" * plus, "diff_added"), ("█" * (cells - plus), "diff_removed")]
 
 
 def _git(args: list[str], cwd: str | None) -> str | None:
@@ -68,58 +67,54 @@ def _parse(status: str, numstat: str | None) -> dict:
     return data
 
 
-class GitPanel(Static):
+class GitPanel:
     """Sidebar panel: the repository's branch, change counts and per-file diff stats."""
 
-    DEFAULT_CSS = "GitPanel { padding: 0 1; margin-bottom: 1; height: auto; }"
-
     def __init__(self) -> None:
-        super().__init__()
-        self.ctx = None
-        self.display = False
+        self.data: dict | None = None
+        self.fetched = 0.0
+        self.fetching = False
 
-    def refresh_state(self, ctx) -> None:
-        self.ctx = ctx
-        self.run_worker(self._load, thread=True, exclusive=True, group="git_panel", exit_on_error=False)
-
-    def _load(self) -> None:
-        cwd = self.ctx.cwd
-        status = _git(["status", "--porcelain=v1", "--branch"], cwd)
-        data = None if status is None else _parse(status, _git(["diff", "--numstat", "HEAD"], cwd))
-        try:
-            self.app.call_from_thread(self._show, data)
-        except RuntimeError:
-            pass  # the app has closed
-
-    def _show(self, data: dict | None) -> None:
+    def render(self, ctx):
+        if not self.fetching and time.monotonic() - self.fetched >= 2:
+            self.fetching = True
+            threading.Thread(target=self._fetch, args=(ctx.cwd,), daemon=True).start()
+        data = self.data
         if data is None:
-            self.display = False
-            return
+            return None
         lines = [
-            Content.assemble(
-                ("GIT", "bold $muted"), (f"  {theme.BRANCH} {data['branch']} ↑{data['ahead']} ↓{data['behind']}", "$dim")
-            ),
-            Content.styled(
-                f"staged {data['staged']} · unstaged {data['unstaged']} · untracked {data['untracked']}", "$muted"
-            ),
+            [
+                ("GIT", "bold muted"),
+                (f"  {theme.BRANCH} {data['branch']} ↑{data['ahead']} ↓{data['behind']}", "dim"),
+            ],
+            [(f"staged {data['staged']} · unstaged {data['unstaged']} · untracked {data['untracked']}", "muted")],
         ]
         for path, added, removed in data["files"][:ROWS]:
             name = path if len(path) <= NAME_WIDTH else "…" + path[-(NAME_WIDTH - 1) :]
             row = [f"{name.ljust(NAME_WIDTH)} "]
             if added is None:
-                row.append(("bin", "$dim"))
+                row.append(("bin", "dim"))
             else:
                 row += [
-                    (f"+{added}", "$diff-added"),
+                    (f"+{added}", "diff_added"),
                     " ",
-                    (f"−{removed}", "$diff-removed"),
+                    (f"−{removed}", "diff_removed"),
                     " ",
-                    _diff_bar(added, removed),
+                    *_diff_bar(added, removed),
                 ]
-            lines.append(Content.assemble(*row))
-        self.update(Content("\n").join(lines))
-        self.display = True
+            lines.append(row)
+        return lines
+
+    def _fetch(self, cwd: str | None) -> None:
+        """Runs on a thread: read the repository, then publish the result for the next render."""
+        try:
+            status = _git(["status", "--porcelain=v1", "--branch"], cwd)
+            self.data = None if status is None else _parse(status, _git(["diff", "--numstat", "HEAD"], cwd))
+        finally:
+            self.fetched = time.monotonic()
+            self.fetching = False
 
 
 def register(minimal):
-    minimal.register_widget("git_panel", lambda ctx: GitPanel(), area="sidebar")
+    panel = GitPanel()
+    minimal.register_panel("git_panel", panel.render, area="sidebar", interval=2.0)

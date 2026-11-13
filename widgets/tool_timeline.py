@@ -4,11 +4,8 @@ from __future__ import annotations
 
 from collections import Counter
 
-from textual.content import Content
-from textual.widgets import Static
-
-__version__ = "1.1"
-__api__ = "1"
+__version__ = "1.2"
+__api__ = "1.3"
 
 TURNS = 8
 """Most recent turns shown, one row each."""
@@ -19,15 +16,15 @@ MARKS = 26
 TOP_TOOLS = 6
 """Tools shown in the calls-per-tool bars."""
 
-MARK = {"ok": ("●", "$success"), "error": ("✘", "$error"), "pending": ("◌", "$warning")}
+MARK = {"ok": ("●", "success"), "error": ("✘", "error"), "pending": ("◌", "warning")}
 
 
-def _bar(fraction: float, width: int, color: str) -> Content:
-    """A ``width``-cell gauge filled to ``fraction`` in ``color``, with eighth-cell precision."""
+def _bar(fraction: float, width: int, color: str) -> list:
+    """A ``width``-cell gauge filled to ``fraction`` in ``color``, with eighth-cell precision, as pieces."""
     eighths = round(max(0.0, min(1.0, fraction)) * width * 8)
     full, part = divmod(eighths, 8)
     filled = "█" * full + ("▏▎▍▌▋▊▉"[part - 1] if part else "")
-    return Content.assemble((filled, color), ("░" * (width - len(filled)), "$dim"))
+    return [(filled, color), ("░" * (width - len(filled)), "dim")]
 
 
 def _turns(messages: list[dict], live: dict[str, bool]) -> list[list[tuple[str, str]]]:
@@ -56,48 +53,39 @@ def _turns(messages: list[dict], live: dict[str, bool]) -> list[list[tuple[str, 
     return turns
 
 
-class ToolTimeline(Static):
+class ToolTimeline:
     """Sidebar panel: the last turns' tool calls as marks and the most used tools as bars."""
 
-    DEFAULT_CSS = "ToolTimeline { padding: 0 1; margin-bottom: 1; height: auto; }"
-
     def __init__(self) -> None:
-        super().__init__()
-        self.live: dict[str, bool] = {}
-        self.display = False
+        self.errors: dict[str, bool] = {}
 
-    def refresh_state(self, ctx) -> None:
-        self._draw(ctx)
-
-    def refresh_live(self, ctx, event: dict) -> None:
+    def live(self, ctx, event: dict) -> None:
         if event["kind"] == "start":
-            self.live.clear()
+            self.errors.clear()
         elif event["kind"] == "tool_result":
-            self.live[event["call"]["id"]] = bool(event["result"].get("is_error"))
-        self._draw(ctx)
+            self.errors[event["call"]["id"]] = bool(event["result"].get("is_error"))
 
-    def _draw(self, ctx) -> None:
-        turns = _turns(ctx.messages, self.live)
+    def render(self, ctx):
+        turns = _turns(ctx.messages, self.errors)
         calls = [call for turn in turns for call in turn]
         if not calls:
-            self.display = False
-            return
+            return None
         errors = sum(state == "error" for _, state in calls)
-        lines = [Content.assemble(("TOOLS", "bold $muted"), (f"  {len(calls)} calls · {errors} errors", "$dim"))]
+        lines = [[("TOOLS", "bold muted"), (f"  {len(calls)} calls · {errors} errors", "dim")]]
         first = max(0, len(turns) - TURNS)
         for n, turn in enumerate(turns[first:], first + 1):
-            row = [(f"{n:>3} ", "$dim"), *(MARK[state] for _, state in turn[:MARKS])]
+            row = [(f"{n:>3} ", "dim"), *(MARK[state] for _, state in turn[:MARKS])]
             if len(turn) > MARKS:
-                row.append((f"+{len(turn) - MARKS}", "$dim"))
-            lines.append(Content.assemble(*row))
-        lines.append(Content(""))
+                row.append((f"+{len(turn) - MARKS}", "dim"))
+            lines.append(row)
+        lines.append("")
         top = Counter(name for name, _ in calls).most_common(TOP_TOOLS)
         most = top[0][1]
         for name, count in top:
-            lines.append(Content.assemble(f"{name[:8]:<8} ", _bar(count / most, 12, "$accent"), f" {count}"))
-        self.update(Content("\n").join(lines))
-        self.display = True
+            lines.append([f"{name[:8]:<8} ", *_bar(count / most, 12, "accent"), f" {count}"])
+        return lines
 
 
 def register(minimal):
-    minimal.register_widget("tool_timeline", lambda ctx: ToolTimeline(), area="sidebar")
+    panel = ToolTimeline()
+    minimal.register_panel("tool_timeline", panel.render, area="sidebar", live=panel.live)

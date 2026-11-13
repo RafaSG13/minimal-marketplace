@@ -4,15 +4,13 @@
 many lines it may change; /fence off removes the fence.
 """
 
-__version__ = "1.3"
-__api__ = "1.1"
+__version__ = "1.4"
+__api__ = "1.3"
 
 import json
 import shlex
 import subprocess
 from pathlib import Path, PurePosixPath
-
-from textual.widgets import Static
 
 from minimal.api import glob_regex
 
@@ -96,16 +94,13 @@ def _rel(root, raw):
         return str(p)
 
 
-class FenceWidget(Static):
+class FenceWidget:
     """Sidebar panel showing the active fence, budget use and blocked paths."""
 
-    DEFAULT_CSS = "FenceWidget { padding: 0 1; }"
-
-    def refresh_state(self, ctx):
+    def render(self, ctx):
         fence = _load(STATE_FILE, None)
         if not fence:
-            self.display = False
-            return
+            return None
         lines = ["FENCE", *(fence["globs"] or ["(any path)"])]
         if fence.get("lines"):
             used = _used(Path(ctx.cwd))
@@ -113,8 +108,7 @@ class FenceWidget(Static):
         blocked = fence.get("blocked", [])
         if blocked:
             lines.append(f"blocked {len(blocked)}: {', '.join(blocked[-3:])}")
-        self.update("\n".join(lines))
-        self.display = True
+        return "\n".join(lines)
 
 
 def register(minimal):
@@ -222,4 +216,4 @@ def register(minimal):
 
     minimal.on("tool_call", guard)
     minimal.on("tool_result", after_bash)
-    minimal.register_widget("fence", lambda ctx: FenceWidget(markup=False), area="sidebar")
+    minimal.register_panel("fence", FenceWidget().render, area="sidebar")

@@ -15,8 +15,9 @@ from textual.binding import Binding
 from textual.widgets import OptionList
 from textual.widgets.option_list import Option
 
-__version__ = "2.0"
+__version__ = "2.1"
 __api__ = "1"
+__frontend__ = "textual"
 
 NAME = "model_picker"
 

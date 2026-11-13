@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from textual.widget import Widget
 
-__version__ = "1.2"
+__version__ = "1.3"
 __api__ = "1"
+__frontend__ = "textual"
 
 DENSITIES = ("cozy", "compact")
 """Transcript spacing: "cozy" keeps minimal's padding and gaps, "compact" removes the gaps between blocks."""

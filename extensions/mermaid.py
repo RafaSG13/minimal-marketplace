@@ -8,25 +8,16 @@ minimal's Python.
 
 from __future__ import annotations
 
-from contextlib import suppress
-
-from rich.text import Text
-from textual.content import Content
-from textual.css.query import NoMatches
-from textual.widget import Widget
-from textual.widgets import Label
-from textual.widgets.markdown import Markdown, MarkdownFence
-
 from minimal.api import theme
 
 try:
-    from termaid import render_rich
+    from termaid import render
     from termaid.utils import fit_to_width
 except ImportError:
-    render_rich = None
+    render = None
 
-__version__ = "1.4"
-__api__ = "1"
+__version__ = "1.5"
+__api__ = "1.3"
 __dependencies__ = ["termaid>=0.12"]
 
 INSTALL_HINT = (
@@ -35,112 +26,29 @@ INSTALL_HINT = (
 )
 
 
-def _draw(source: str, width: int) -> Text:
-    """``source`` drawn as coloured Unicode art, narrowed towards ``width`` columns. Raises on invalid Mermaid."""
+def render_fence(ctx, block):
+    """``block``'s source as box art narrowed towards its width; ``None`` (the source as is) while it streams and can't be drawn."""
+    src, closed, width = block["source"], block["closed"], block["width"]
 
-    def render(**overrides):
-        return render_rich(source, theme="default", **overrides)
+    def failed(message):
+        # While streaming, keep drawing the source until the block closes.
+        if not closed:
+            return None
+        return [*src.rstrip("\n").split("\n"), "", [(f"{theme.WARNING} mermaid: {message}", "warning")]]
 
-    diagram = fit_to_width(render, render(), width, plain=lambda t: t.plain)
-    diagram.no_wrap = True
-    return diagram
-
-
-class MermaidFence(MarkdownFence):
-    """A fence that shows ```mermaid blocks as diagrams and every other fence unchanged."""
-
-    def __init__(self, markdown, token, code) -> None:
-        super().__init__(markdown, token, code)
-        raw = token.content
-        self.is_mermaid = (token.info.split() or [""])[0].lower() == "mermaid"
-        # markdown-it maps a closed fence to its content lines plus the two fence lines.
-        self.closed = (
-            token.map is not None
-            and raw.endswith("\n")
-            and token.map[1] - token.map[0] == raw.count("\n") + 2
-        )
-        # While streaming, only complete lines are drawn.
-        self.mermaid_source = raw if self.closed else raw[: raw.rfind("\n") + 1]
-        self.diagram: Text | None = None
-        self.error: str | None = None
-        self._drawn: tuple[str, bool] | None = None
-
-    def _width(self) -> int:
-        # 4 = the fence Label's horizontal padding.
-        return max((self._markdown.content_region.width or self.app.size.width) - 4, 20)
-
-    def _redraw(self) -> None:
-        key = (self.mermaid_source, self.closed)
-        if key == self._drawn:
-            return
-        self._drawn = key
-        if not self.mermaid_source.strip():
-            return
-        try:
-            diagram = _draw(self.mermaid_source, self._width())
-        except Exception as e:
-            # While streaming, keep the last good diagram (or the source) until the block closes.
-            if self.closed:
-                self.diagram, self.error = None, f"{type(e).__name__}: {e}"
-            return
-        if diagram.plain.strip():
-            self.diagram, self.error = diagram, None
-        elif self.closed:
-            self.diagram, self.error = None, "nothing to draw"
-
-    def _view(self):
-        if not self.is_mermaid:
-            return self._highlighted_code
-        self._redraw()
-        if self.diagram is not None:
-            return self.diagram
-        if self.error is not None:
-            return Content.assemble(self.code, "\n\n", (f"{theme.WARNING} mermaid: {self.error}", "$warning"))
-        return self._highlighted_code
-
-    def compose(self):
-        yield Label(self._view(), id="code-content", expand=True)
-
-    def set_content(self, content) -> None:
-        self._content = content
-        with suppress(NoMatches):
-            self.query_one("#code-content", Label).update(self._view())
-
-    async def _update_from_block(self, block) -> None:
-        if isinstance(block, MermaidFence):
-            self.is_mermaid = block.is_mermaid
-            self.closed = block.closed
-            self.mermaid_source = block.mermaid_source
-        await super()._update_from_block(block)
-
-    def finish(self) -> None:
-        """Draw a mermaid block the reply left unclosed as if it were closed."""
-        if self.is_mermaid and not self.closed:
-            self.closed = True
-            self.mermaid_source = self.code + "\n"
-            self.set_content(self._content)
-
-
-class MermaidSupport(Widget):
-    """Invisible holder: swaps in MermaidFence while mounted, restores the stock fence when removed."""
-
-    DEFAULT_CSS = "MermaidSupport { display: none; }"
-
-    def on_mount(self) -> None:
-        Markdown.BLOCKS = {**Markdown.BLOCKS, "fence": MermaidFence}
-
-    def on_unmount(self) -> None:
-        Markdown.BLOCKS = {**Markdown.BLOCKS, "fence": MarkdownFence}
-
-    def refresh_state(self, ctx) -> None:
-        for fence in self.app.query(MermaidFence):
-            fence.finish()
+    try:
+        art = fit_to_width(lambda **options: render(src, **options), render(src), width)
+    except Exception as e:
+        return failed(f"{type(e).__name__}: {e}")
+    if not art.strip():
+        return failed("nothing to draw")
+    return art.split("\n")
 
 
 def register(minimal):
-    if render_rich is None:
+    if render is None:
         raise ImportError(INSTALL_HINT, name="termaid")
-    minimal.register_widget("mermaid", lambda ctx: MermaidSupport(), area="bottom")
+    minimal.register_renderer("fence:mermaid", render_fence)
     minimal.append_system_prompt(
         "The terminal UI draws ```mermaid fenced code blocks as diagrams. When the user asks for a diagram, "
         "or a diagram would show structure or flow better than prose, write it as a ```mermaid block."

@@ -8,15 +8,13 @@ minimal's data folder for this project (`minimal.data_dir()`), never in the repo
 a repository must not be able to choose what runs when you open it.
 """
 
-__version__ = "2.2"
-__api__ = "1.1"
+__version__ = "2.3"
+__api__ = "1.3"
 
 import hashlib
 import json
 import subprocess
 from pathlib import Path
-
-from textual.widgets import Static
 
 GIT_SCOPE = ("--", ".", ":(exclude).minimal")
 USAGE = "usage: /tripwire add <command> | rm <n> | run"
@@ -79,27 +77,22 @@ def _listing(wires):
     return "\n".join(f"{n}. {names[w['ok']]}  {w['cmd']}" for n, w in enumerate(wires, 1))
 
 
-class TripwireWidget(Static):
+class TripwireWidget:
     """Bottom bar showing how many invariants pass."""
 
-    DEFAULT_CSS = "TripwireWidget { height: 1; padding: 0 1; }"
-
-    def refresh_state(self, ctx):
+    def render(self, ctx):
         state = _state()
         wires = state["wires"]
         if not wires:
-            self.display = False
-            return
+            return None
         passing = sum(1 for w in wires if w["ok"] is True)
         if passing == len(wires):
-            self.update(f"● {passing}/{len(wires)} wires · 0 edits since green")
-        else:
-            failing = next(w["cmd"] for w in wires if w["ok"] is not True)
-            self.update(
-                f"✘ {passing}/{len(wires)} wires · {state['edits_since_green']} edits since green"
-                f" · failing: {failing}"
-            )
-        self.display = True
+            return f"● {passing}/{len(wires)} wires · 0 edits since green"
+        failing = next(w["cmd"] for w in wires if w["ok"] is not True)
+        return (
+            f"✘ {passing}/{len(wires)} wires · {state['edits_since_green']} edits since green"
+            f" · failing: {failing}"
+        )
 
 
 def register(minimal):
@@ -189,4 +182,4 @@ def register(minimal):
         "fix it before continuing."
     )
 
-    minimal.register_widget("tripwire", lambda ctx: TripwireWidget(markup=False), area="bottom")
+    minimal.register_panel("tripwire", TripwireWidget().render, area="bottom")

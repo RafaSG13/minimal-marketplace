@@ -12,7 +12,7 @@ Requires minimal 0.4 or later. An item written for a newer API than your minimal
 
 ## Use
 
-Install minimal with `uv tool install mnml-agent`, then, inside it:
+Install minimal with `uv tool install "mnml-agent[tui]"` (the `tui` extra adds Textual, which the terminal UI needs), then, inside it:
 
 ```
 /ext                         pick a marketplace and a category, then tick items to install, update or remove
@@ -51,7 +51,7 @@ Each item can go into your global folder (`~/.minimal/extensions/`, every projec
 | Item | What it does |
 | ---- | ------------ |
 | `widgets/animated_logo` | The pixel-art logo with a gradient flowing across it (replaces `widgets/logo`: install one or the other). |
-| `widgets/callouts` | Renders GitHub alert blockquotes (`> [!NOTE]`, `[!WARNING]`, …) as coloured boxes. |
+| `widgets/callouts` | Renders GitHub alert blockquotes (`> [!NOTE]`, `[!WARNING]`, …) as coloured callouts. |
 | `widgets/command_menu` | Type `/` to get every command, narrowed as you type and driven with the arrow keys. |
 | `widgets/context_gauge` | A one-line bar of how full the context window is, with the prompt-cache hit rate. |
 | `widgets/files_touched` | Files read, edited and written this session, with added and removed lines. |
@@ -99,6 +99,7 @@ The category only groups items: any item may register anything. A folder and a f
 - **Version:** a top-level `__version__ = "1.0"` string (required). Bump it on every change so installed copies are offered the update.
 - **API:** a top-level `__api__ = "1"` string (required): the [minimal API version](https://github.com/RafaSG13/Minimal/blob/main/docs/extensions.md#api-versions) the item is written for. `"1"` runs on any 1.x, `"1.1"` on 1.1 or a later 1.x. minimal does not load an item without it, or one written for another major version, and `/ext` does not install it.
 - **Dependencies:** an optional top-level `__dependencies__ = ["termaid>=0.12"]` listing the third-party packages the item imports. `/ext` offers to install the missing ones, and CI installs them before checking the item.
+- **Frontend:** an optional top-level `__frontend__ = "textual"` for an item that imports `textual` or `rich` (say, a widget built with `register_widget`). It loads only in the terminal UI, is skipped under `--ui console`, and `/ext` marks it `textual only`. To only show text, use `minimal.register_panel` or `minimal.register_renderer` (API 1.3) instead: they work in every frontend.
 - The item must define a top-level `register(minimal)` function. Import only from `minimal.api`; everything else in minimal is internal.
 
 A theme needs only `background`, `foreground` and `accent`; minimal derives the other colours:
@@ -147,7 +148,7 @@ Before opening a pull request, validate every item from the repository root:
 minimal ext check --install-deps .
 ```
 
-It installs the packages the items declare in `__dependencies__`, loads each item without a terminal and prints `ok`, `WARN` (an optional module is missing) or `FAIL` per item; it exits non-zero on any `FAIL`. CI runs the same check on every pull request, with minimal's current `main`, so an item that the next minimal API would break fails here before that minimal is released.
+It installs the packages the items declare in `__dependencies__`, loads each item without a terminal and prints `ok`, `WARN` (an optional module is missing) or `FAIL` per item; it exits non-zero on any `FAIL`. An item that imports `textual` or `rich` without `__frontend__ = "textual"` fails too. CI runs the same check on every pull request, with minimal's current `main` (and Textual, which the textual-only items import), so an item that the next minimal API would break fails here before that minimal is released.
 
 Publishing never pushes to `main`; items are added by merging the pull request. Without push access to this repository, fork it and set `MINIMAL_MARKETPLACE` to your fork's URL before `/ext publish`. `/ext publish` puts the item in the category of the folder it comes from (`~/.minimal/extensions/themes/ocean.py` → `themes/`), else in `extensions/`. When you add an item, add its row to the [catalogue](#catalogue) in the same pull request. By contributing an item you agree to license it under the MIT License below.
 

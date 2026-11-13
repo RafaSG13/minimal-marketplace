@@ -2,13 +2,10 @@
 
 import time
 
-from textual.content import Content
-from textual.widgets import Static
-
 from minimal.api import theme
 
-__version__ = "1.1"
-__api__ = "1"
+__version__ = "1.2"
+__api__ = "1.3"
 
 
 def _label(call: dict) -> str:
@@ -22,25 +19,18 @@ def _label(call: dict) -> str:
     return name
 
 
-class LiveActivity(Static):
-    DEFAULT_CSS = "LiveActivity { height: 1; padding: 0 2; }"
-
+class LiveActivity:
     def __init__(self) -> None:
-        super().__init__()
         self.state: dict | None = None
 
-    def on_mount(self) -> None:
-        self.display = False
-        self.ticker = self.set_interval(0.25, self._tick, pause=True)
-
-    def refresh_live(self, ctx, event: dict) -> None:
+    def live(self, ctx, event: dict) -> None:
         kind, now = event.get("kind"), time.monotonic()
-        if kind == "start":
+        if kind == "end":
+            self.state = None
+        elif kind == "start":
             if not event.get("turn"):
                 return
             self.state = {"t0": now, "calls": 0, "current": None, "since": None, "last": None}
-            self.display = True
-            self.ticker.resume()
         elif self.state is None:
             return
         elif kind == "tool_call":
@@ -50,36 +40,32 @@ class LiveActivity(Static):
             ok = not event["result"].get("is_error")
             self.state["last"] = (self.state["current"], ok, now - self.state["since"])
             self.state["current"] = None
-        self._tick()
 
-    def refresh_state(self, ctx) -> None:
-        self.ticker.pause()
-        self.display = False
-
-    def _tick(self) -> None:
+    def render(self, ctx):
         s = self.state
         if s is None:
-            return
+            return None
         now = time.monotonic()
         if s["current"] is not None:
             parts = [
-                (theme.RUNNING, "$warning"),
+                (theme.RUNNING, "warning"),
                 " ",
                 (s["current"], "bold"),
-                (f" · {now - s['since']:.1f}s", "$dim"),
+                (f" · {now - s['since']:.1f}s", "dim"),
             ]
         else:
-            parts = [("⋯ thinking", "$muted")]
+            parts = [("⋯ thinking", "muted")]
             if s["last"] is not None:
                 label, ok, dur = s["last"]
                 parts += [
                     " · last ",
-                    (theme.SUCCESS if ok else theme.ERROR, "$success" if ok else "$error"),
+                    (theme.SUCCESS if ok else theme.ERROR, "success" if ok else "error"),
                     f" {label} {dur:.1f}s",
                 ]
-        parts.append((f"  │ {s['calls']} calls · {now - s['t0']:.0f}s", "$dim"))
-        self.update(Content.assemble(*parts))
+        parts.append((f"  │ {s['calls']} calls · {now - s['t0']:.0f}s", "dim"))
+        return [parts]
 
 
 def register(minimal):
-    minimal.register_widget("live_activity", lambda ctx: LiveActivity(), area="bottom")
+    panel = LiveActivity()
+    minimal.register_panel("live_activity", panel.render, area="bottom", live=panel.live, interval=0.25)

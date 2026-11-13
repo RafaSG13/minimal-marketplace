@@ -4,14 +4,12 @@ The model records what it could not verify, noticed or left undone with the
 note tool; /ends lets you review the backlog and close the finished items.
 """
 
-__version__ = "1.3"
-__api__ = "1.1"
+__version__ = "1.4"
+__api__ = "1.3"
 
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-
-from textual.widgets import Static
 
 STATE_FILE = None
 KINDS = ("unverified", "noticed", "followup")
@@ -62,21 +60,17 @@ def _note(input, ctx):
     return f"Noted #{new_id}"
 
 
-class LooseEndsWidget(Static):
+class LooseEndsWidget:
     """Sidebar panel listing the newest open loose ends."""
 
-    DEFAULT_CSS = "LooseEndsWidget { padding: 0 1; }"
-
-    def refresh_state(self, ctx):
+    def render(self, ctx):
         open_items = [i for i in _items() if not i.get("done")]
         if not open_items:
-            self.display = False
-            return
+            return None
         lines = [f"LOOSE ENDS ({len(open_items)})"]
         for item in sorted(open_items, key=lambda i: i["id"], reverse=True)[:8]:
             lines.append(f"{GLYPHS.get(item['kind'], '?')} {item['text']}"[:32])
-        self.update("\n".join(lines))
-        self.display = True
+        return "\n".join(lines)
 
 
 def register(minimal):
@@ -107,7 +101,7 @@ def register(minimal):
         "problem, or that work remains, also record it with the note tool."
     )
 
-    minimal.register_widget("loose_ends", lambda ctx: LooseEndsWidget(markup=False), area="sidebar")
+    minimal.register_panel("loose_ends", LooseEndsWidget().render, area="sidebar")
 
     def ends(args, ctx):
         items = _items()

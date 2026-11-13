@@ -1,10 +1,7 @@
 """Token sparkline: input tokens per request as a sparkline, session totals and an estimated cost."""
 
-from textual.content import Content
-from textual.widgets import Static
-
-__version__ = "1.2"
-__api__ = "1"
+__version__ = "1.3"
+__api__ = "1.3"
 
 # Model-name prefix -> USD per million tokens (input, output, cache_read, cache_write).
 # Checked 2026-11-10 against platform.claude.com/docs/en/about-claude/pricing,
@@ -75,24 +72,14 @@ def _cost(ctx, prices) -> float | None:
     return total / 1e6
 
 
-class TokenSparkline(Static):
-    DEFAULT_CSS = "TokenSparkline { padding: 0 1; margin-bottom: 1; height: auto; }"
-
+class TokenSparkline:
     def __init__(self, prices) -> None:
-        super().__init__()
         self.prices = prices
 
-    def refresh_state(self, ctx) -> None:
-        self._draw(ctx)
-
-    def refresh_live(self, ctx, event: dict) -> None:
-        self._draw(ctx)
-
-    def _draw(self, ctx) -> None:
+    def render(self, ctx):
         usages = _usages(ctx.messages)
         if not usages:
-            self.display = False
-            return
+            return None
         values = [u.get("input_tokens") or 0 for u in usages][-SPARK_LEN:]
         top = max(values) or 1
         spark = "".join(SPARK[min(7, v * 8 // top)] for v in values)
@@ -101,23 +88,21 @@ class TokenSparkline(Static):
         total_read = sum(u.get("cache_read_tokens") or 0 for u in usages)
         cache = total_read / total_in if total_in else 0
         lines = [
-            Content.assemble(("TOKENS", "bold $muted"), (f"  {len(usages)} requests", "$dim")),
-            Content.styled(spark, "$accent"),
-            Content.styled(
-                f"in {_tokens(total_in)} · out {_tokens(total_out)} · cache {cache:.0%}", "$muted"
-            ),
+            [("TOKENS", "bold muted"), (f"  {len(usages)} requests", "dim")],
+            [(spark, "accent")],
+            [(f"in {_tokens(total_in)} · out {_tokens(total_out)} · cache {cache:.0%}", "muted")],
         ]
         cost = _cost(ctx, self.prices)
         if cost is not None:
-            lines.append(Content(f"≈ ${cost:.2f}"))
-        self.update(Content("\n").join(lines))
-        self.display = True
+            lines.append(f"≈ ${cost:.2f}")
+        return lines
 
 
 def register(minimal):
     settings = minimal.declare_settings({"prices": PRICES})
     prices = {**PRICES, **settings["prices"]}
-    minimal.register_widget("token_sparkline", lambda ctx: TokenSparkline(prices), area="sidebar")
+    panel = TokenSparkline(prices)
+    minimal.register_panel("token_sparkline", panel.render, area="sidebar")
     minimal.register_status(
         "cost",
         lambda ctx: f"≈${c:.2f}" if (c := _cost(ctx, prices)) is not None else None,

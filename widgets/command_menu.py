@@ -13,8 +13,9 @@ from textual.suggester import Suggester
 from textual.widgets import Input, OptionList
 from textual.widgets.option_list import Option
 
-__version__ = "2.0"
+__version__ = "2.1"
 __api__ = "1"
+__frontend__ = "textual"
 
 
 class CommandSuggester(Suggester):

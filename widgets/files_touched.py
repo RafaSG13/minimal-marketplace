@@ -6,11 +6,8 @@ import os
 from difflib import SequenceMatcher
 from pathlib import Path
 
-from textual.content import Content
-from textual.widgets import Static
-
-__version__ = "1.2"
-__api__ = "1"
+__version__ = "1.3"
+__api__ = "1.3"
 
 ROWS = 12
 """Most files listed, most recently touched first."""
@@ -21,16 +18,16 @@ NAME_WIDTH = 14
 COUNTS_WIDTH = 8
 """Columns for ``+added −removed``, so the bars line up; the row fills the 31-column sidebar panel."""
 
-MARKERS = {"A": "$success", "M": "$warning", "R": "$muted"}
+MARKERS = {"A": "success", "M": "warning", "R": "muted"}
 
 
-def _diff_bar(added: int, removed: int, cells: int = 5) -> Content:
-    """``cells`` blocks split between added (green) and removed (red) lines."""
+def _diff_bar(added: int, removed: int, cells: int = 5) -> list:
+    """``cells`` blocks split between added (green) and removed (red) lines, as pieces."""
     total = added + removed
     if not total:
-        return Content.styled("·" * cells, "$dim")
+        return [("·" * cells, "dim")]
     plus = round(cells * added / total)
-    return Content.assemble(("█" * plus, "$diff-added"), ("█" * (cells - plus), "$diff-removed"))
+    return [("█" * plus, "diff_added"), ("█" * (cells - plus), "diff_removed")]
 
 
 def _name(path: Path, cwd: Path) -> str:
@@ -104,58 +101,45 @@ def _marker(stats: dict) -> str:
     return "A" if stats["writes"] else "R"
 
 
-class FilesTouched(Static):
+class FilesTouched:
     """Sidebar panel: the session's files with a change marker and added/removed lines."""
 
-    DEFAULT_CSS = "FilesTouched { padding: 0 1; margin-bottom: 1; height: auto; }"
-
     def __init__(self) -> None:
-        super().__init__()
-        self.live: dict[str, bool] = {}
-        self.display = False
+        self.errors: dict[str, bool] = {}
 
-    def refresh_state(self, ctx) -> None:
-        self._draw(ctx)
-
-    def refresh_live(self, ctx, event: dict) -> None:
+    def live(self, ctx, event: dict) -> None:
         if event["kind"] == "start":
-            self.live.clear()
+            self.errors.clear()
         elif event["kind"] == "tool_result":
-            self.live[event["call"]["id"]] = bool(event["result"].get("is_error"))
-        self._draw(ctx)
+            self.errors[event["call"]["id"]] = bool(event["result"].get("is_error"))
 
-    def _draw(self, ctx) -> None:
+    def render(self, ctx):
         cwd = Path(ctx.cwd or ".").resolve()
-        files = _files(ctx.messages, cwd, self.live)
+        files = _files(ctx.messages, cwd, self.errors)
         if not files:
-            self.display = False
-            return
+            return None
         total_added = sum(stats["added"] for stats in files.values())
         total_removed = sum(stats["removed"] for stats in files.values())
-        lines = [
-            Content.assemble(
-                ("FILES", "bold $muted"), (f"  {len(files)} · +{total_added} −{total_removed}", "$dim")
-            )
-        ]
+        lines = [[("FILES", "bold muted"), (f"  {len(files)} · +{total_added} −{total_removed}", "dim")]]
         recent = sorted(files.items(), key=lambda item: item[1]["last"], reverse=True)[:ROWS]
         for path, stats in recent:
             marker = _marker(stats)
             row = [(marker, MARKERS[marker]), f" {_name(path, cwd).ljust(NAME_WIDTH)} "]
             if marker == "R":
-                row.append((f"read ×{stats['reads']}", "$dim"))
+                row.append((f"read ×{stats['reads']}", "dim"))
             else:
                 counts = f"+{stats['added']} −{stats['removed']}"
                 row += [
-                    (f"+{stats['added']}", "$diff-added"),
+                    (f"+{stats['added']}", "diff_added"),
                     " ",
-                    (f"−{stats['removed']}", "$diff-removed"),
+                    (f"−{stats['removed']}", "diff_removed"),
                     " " * max(1, COUNTS_WIDTH + 1 - len(counts)),
-                    _diff_bar(stats["added"], stats["removed"]),
+                    *_diff_bar(stats["added"], stats["removed"]),
                 ]
-            lines.append(Content.assemble(*row))
-        self.update(Content("\n").join(lines))
-        self.display = True
+            lines.append(row)
+        return lines
 
 
 def register(minimal):
-    minimal.register_widget("files_touched", lambda ctx: FilesTouched(), area="sidebar")
+    panel = FilesTouched()
+    minimal.register_panel("files_touched", panel.render, area="sidebar", live=panel.live)

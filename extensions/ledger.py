@@ -4,15 +4,13 @@ A sidebar panel shows the heaviest tool results in the context; /prune drops
 chosen ones and continues in a new session (the old one stays on disk).
 """
 
-__version__ = "1.2"
-__api__ = "1"
+__version__ = "1.3"
+__api__ = "1.3"
 
 import copy
 import json
 import time
 from pathlib import Path
-
-from textual.widgets import Static
 
 from minimal.api import result_text
 
@@ -96,16 +94,13 @@ def _tokens_per_char(ctx, total):
     return ctx.context_tokens / total if ctx.context_tokens and total else 0.25
 
 
-class LedgerWidget(Static):
+class LedgerWidget:
     """Sidebar panel: context size, its composition and the heaviest tool results."""
 
-    DEFAULT_CSS = "LedgerWidget { padding: 0 1; }"
-
-    def refresh_state(self, ctx):
+    def render(self, ctx):
         messages = ctx.messages
         if not messages:
-            self.update("CONTEXT empty")
-            return
+            return "CONTEXT empty"
         results, inputs, prose = _totals(messages)
         total = results + inputs + prose
         per_char = _tokens_per_char(ctx, total)
@@ -119,7 +114,7 @@ class LedgerWidget(Static):
         for e in sorted(_entries(messages, ctx.cwd), key=lambda e: e["chars"], reverse=True)[:6]:
             label = e["label"] if len(e["label"]) <= 26 else e["label"][:25] + "…"
             lines.append(f"{e['chars'] * per_char / 1000:>4.1f}k {label}" + (" ⚠" if e["stale"] else ""))
-        self.update("\n".join(lines))
+        return "\n".join(lines)
 
 
 def register(minimal):
@@ -174,4 +169,4 @@ def register(minimal):
         prune,
         description="drop chosen tool results from the context (continues in a new session)",
     )
-    minimal.register_widget("ledger", lambda ctx: LedgerWidget(markup=False), area="sidebar")
+    minimal.register_panel("ledger", LedgerWidget().render, area="sidebar")

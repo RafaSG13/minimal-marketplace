@@ -1,12 +1,9 @@
 """Plan board: a `plan` tool the model keeps updated, shown as a checklist with a progress bar."""
 
-from textual.content import Content
-from textual.widgets import Static
-
 from minimal.api import theme
 
-__version__ = "1.1"
-__api__ = "1"
+__version__ = "1.2"
+__api__ = "1.3"
 
 STATUSES = ("pending", "active", "done")
 MAX_STEPS = 20
@@ -37,7 +34,7 @@ def _bar(fraction, width, color):
     eighths = round(fraction * width * 8)
     full, part = divmod(eighths, 8)
     filled = "█" * full + ("▏▎▍▌▋▊▉"[part - 1] if part and full < width else "")
-    return Content.assemble((filled, color), ("░" * (width - len(filled)), "$dim"))
+    return [(filled, color), ("░" * (width - len(filled)), "dim")]
 
 
 def _validate(steps):
@@ -82,48 +79,40 @@ def _last_plan(messages):
     return None
 
 
-class PlanBoard(Static):
-    DEFAULT_CSS = "PlanBoard { padding: 0 1; margin-bottom: 1; height: auto; }"
-
+class PlanBoard:
     def __init__(self):
-        super().__init__()
         self.override = None
-        self.display = False
 
-    def refresh_state(self, ctx):
-        self.override = None
-        self._draw(_last_plan(ctx.messages))
-
-    def refresh_live(self, ctx, event):
+    def live(self, ctx, event):
         if event["kind"] == "start":
             self.override = None
         elif event["kind"] == "tool_result":
             call, result = event["call"], event["result"]
             if call.get("name") == "plan" and not result.get("is_error"):
                 self.override = call.get("input", {}).get("steps")
-        self._draw(self.override if self.override is not None else _last_plan(ctx.messages))
+        elif event["kind"] == "end":
+            self.override = None
 
-    def _draw(self, steps):
+    def render(self, ctx):
+        steps = self.override if self.override is not None else _last_plan(ctx.messages)
         try:
             _validate(steps)
         except ValueError:
-            self.display = False
-            return
+            return None
         n = len(steps)
         done = sum(step["status"] == "done" for step in steps)
         lines = [
-            Content.assemble(("PLAN", "bold $muted"), (f"  {done}/{n}", "$dim")),
-            _bar(done / n, BAR_WIDTH, "$success"),
+            [("PLAN", "bold muted"), (f"  {done}/{n}", "dim")],
+            _bar(done / n, BAR_WIDTH, "success"),
         ]
         for step in steps:
             if step["status"] == "done":
-                lines.append(Content.assemble((theme.SUCCESS, "$success"), " ", (step["text"], "$dim")))
+                lines.append([(theme.SUCCESS, "success"), " ", (step["text"], "dim")])
             elif step["status"] == "active":
-                lines.append(Content.styled(f"◐ {step['text']}", "bold $accent"))
+                lines.append([(f"◐ {step['text']}", "bold accent")])
             else:
-                lines.append(Content.styled(f"○ {step['text']}", "$muted"))
-        self.update(Content("\n").join(lines))
-        self.display = True
+                lines.append([(f"○ {step['text']}", "muted")])
+        return lines
 
 
 def register(minimal):
@@ -141,4 +130,5 @@ def register(minimal):
         "For tasks with three or more steps, call the plan tool with the full list of steps first, "
         "and again with the whole updated list whenever a step changes status; keep at most one step active."
     )
-    minimal.register_widget("plan_board", lambda ctx: PlanBoard(), area="sidebar")
+    panel = PlanBoard()
+    minimal.register_panel("plan_board", panel.render, area="sidebar", live=panel.live)

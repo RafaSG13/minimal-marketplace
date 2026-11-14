@@ -36,7 +36,13 @@ type server struct {
 	killed bool
 }
 
-// startServer runs `bin serve args...`. Its stderr must not reach the terminal the interface draws on, so it goes
+// serveArgs is the command line after the executable: the server always runs as the Go frontend.
+func serveArgs(args []string) []string {
+	return append([]string{"serve", "--ui", "go"}, args...)
+}
+
+// startServer runs `bin serve --ui go args...`: --ui go tells minimal which frontend it serves, so it loads the extensions
+// installed for Go (~/.minimal/extensions/go). Its stderr must not reach the terminal the interface draws on, so it goes
 // to the file named by MINIMAL_GO_LOG, else to a log of this run in the user's cache directory.
 func startServer(bin string, args []string) (*server, error) {
 	log, path, keep, err := openLog()
@@ -48,7 +54,7 @@ func startServer(bin string, args []string) (*server, error) {
 		log.Close()
 		return nil, err
 	}
-	cmd := exec.Command(bin, append([]string{"serve"}, args...)...)
+	cmd := exec.Command(bin, serveArgs(args)...)
 	cmd.Stdout, cmd.Stderr = wr, log
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

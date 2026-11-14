@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/RafaSG13/minimal-marketplace/tree/main/frontends/textual"
+Homepage = "https://github.com/RafaSG13/minimal-marketplace/tree/main/textual"
 Repository = "https://github.com/RafaSG13/minimal-marketplace"
 Issues = "https://github.com/RafaSG13/minimal-marketplace/issues"
 

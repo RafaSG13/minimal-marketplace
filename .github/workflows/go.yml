@@ -2,9 +2,9 @@ name: Go
 on:
   push:
     branches: [main]
-    paths: [frontends/go/**, .github/workflows/go.yml]
+    paths: [go/**, .github/workflows/go.yml]
   pull_request:
-    paths: [frontends/go/**, .github/workflows/go.yml]
+    paths: [go/**, .github/workflows/go.yml]
 permissions:
   contents: read
 jobs:
@@ -12,15 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontends/go
+        working-directory: go
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-go@v6
         with:
-          go-version-file: frontends/go/go.mod
-          cache-dependency-path: frontends/go/go.sum
+          go-version-file: go/go.mod
+          cache-dependency-path: go/go.sum
       - name: gofmt
         run: test -z "$(gofmt -l .)"
       - run: go vet ./...

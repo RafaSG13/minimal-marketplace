@@ -1,8 +1,9 @@
 // Command minimal-go is a terminal UI for minimal built with Bubble Tea, Bubbles, Lip Gloss and Glamour.
 //
-// It owns the terminal and starts `minimal serve` as a child: the server's events arrive as JSON lines on the
+// It owns the terminal and starts `minimal serve --ui go` as a child: the server's events arrive as JSON lines on the
 // child's stdout, and the user's actions go to its stdin. Every argument is passed on to `minimal serve`; the
-// MINIMAL_BIN environment variable names the minimal executable (default: minimal, found on PATH).
+// MINIMAL_BIN environment variable names the minimal executable (default: minimal, found on PATH). Users normally
+// run `minimal`, which starts this program when Go is the frontend they chose.
 package main
 
 import (
@@ -28,7 +29,7 @@ func minimalBin() string {
 	return "minimal"
 }
 
-// run starts the server with args and shows its session; the result is the exit status.
+// run starts `minimal serve --ui go` with args and shows its session; the result is the exit status.
 func run(args []string) int {
 	bin := minimalBin()
 	if slices.Contains(args, "-h") || slices.Contains(args, "--help") {
@@ -67,8 +68,8 @@ func run(args []string) int {
 
 // help prints this program's usage and then the server's own (`minimal serve --help`).
 func help(bin string) int {
-	fmt.Fprintf(os.Stderr, "Usage: minimal-go [minimal serve arguments]\n\nRuns `%s serve` (set MINIMAL_BIN to change the executable) and shows it in a terminal UI.\nThe server's own help follows.\n\n", bin)
-	cmd := exec.Command(bin, "serve", "--help")
+	fmt.Fprintf(os.Stderr, "Usage: minimal-go [minimal serve arguments]\n\nRuns `%s serve --ui go` (set MINIMAL_BIN to change the executable) and shows it in a terminal UI.\nYou normally start it by running `minimal` with the Go frontend chosen.\nThe server's own help follows.\n\n", bin)
+	cmd := exec.Command(bin, "serve", "--ui", "go", "--help")
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Run(); err != nil {
 		var exit *exec.ExitError

@@ -21,6 +21,7 @@ from minimal.extensions import loader
 from minimal.extensions.registry import LogoSpec, Registry
 from minimal.providers.base import Reply
 from minimal.ui.commands import register_builtin_commands
+import minimal_textual
 from minimal_textual.app import CommandSuggester, MinimalTui, _outside_event_loop
 from minimal_textual.markdown import RenderedFence, RenderedQuote
 from minimal_textual.screens import ChecklistScreen, ChoiceScreen, ConfirmScreen, TextScreen
@@ -92,6 +93,8 @@ class TuiTest(unittest.IsolatedAsyncioTestCase):
             cwd=str(self.tmp),
             auto_approve=False,
             register_commands=register_builtin_commands,
+            register_frontends=minimal_textual.register,
+            ui="tui",  # as minimal runs it: extensions load from the textual/ folder
         )
         self.core.reload_extensions()
         self.core.registry.register_widget("counter", lambda ctx: Counter(), area="sidebar")
@@ -417,7 +420,7 @@ class TuiTest(unittest.IsolatedAsyncioTestCase):
         patcher = mock.patch.object(config, "TRUST_FILE", self.tmp / "trusted.json")
         patcher.start()
         self.addCleanup(patcher.stop)
-        ext_dir = self.tmp / ".minimal" / "extensions"
+        ext_dir = self.tmp / ".minimal" / "extensions" / "textual"
         ext_dir.mkdir(parents=True)
         (ext_dir / "hello.py").write_text(
             '__api__ = "2"\ndef register(minimal):\n    minimal.register_tool(name="hello", run=lambda input, ctx: "hi")\n'

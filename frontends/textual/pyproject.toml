@@ -1,0 +1,45 @@
+[project]
+name = "minimal-textual"
+version = "0.1.0"
+description = "The Textual terminal UI for minimal"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "RafaSG13", email = "rafasrrg13@gmail.com" }
+]
+requires-python = ">=3.11"
+keywords = ["agent", "llm", "cli", "tui", "textual", "minimal"]
+classifiers = [
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development",
+]
+dependencies = [
+    "mnml-agent",
+    "textual>=8.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/RafaSG13/minimal-marketplace/tree/main/frontends/textual"
+Repository = "https://github.com/RafaSG13/minimal-marketplace"
+Issues = "https://github.com/RafaSG13/minimal-marketplace/issues"
+
+[project.entry-points."minimal.frontends"]
+tui = "minimal_textual:register"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/minimal_textual"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

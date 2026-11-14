@@ -1,4 +1,4 @@
-module github.com/RafaSG13/minimal-marketplace/frontends/go
+module github.com/RafaSG13/minimal-marketplace/go
 
 go 1.26.7
 

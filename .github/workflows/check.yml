@@ -14,4 +14,4 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@v10.3.3
       # minimal's main branch: the API the next release ships, so a break shows up here first.
-      - run: uvx --with ./frontends/textual --from git+https://github.com/RafaSG13/Minimal@main minimal ext check --install-deps .
+      - run: uvx --with ./textual --from git+https://github.com/RafaSG13/Minimal@main minimal ext check --install-deps .

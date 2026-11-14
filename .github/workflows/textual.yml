@@ -22,4 +22,4 @@ jobs:
           python-version: ${{ matrix.python-version }}
       # minimal's main branch: the API the next release ships, so a break shows up here first.
       - run: uv run --no-project --with git+https://github.com/RafaSG13/Minimal@main --with-editable . python -m unittest discover -s tests
-        working-directory: frontends/textual
+        working-directory: textual

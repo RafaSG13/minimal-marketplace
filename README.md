@@ -6,40 +6,32 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="MIT License"></a>
 </p>
 
-Extensions, tools, widgets and themes for [minimal](https://github.com/RafaSG13/Minimal), the terminal coding-agent harness, and the Textual terminal UI that runs it. This is minimal's default marketplace: `/ext` lists it out of the box.
+Extensions, tools, widgets and themes for [minimal](https://github.com/RafaSG13/Minimal), the terminal coding-agent harness. This is minimal's default marketplace: `/ext` lists it out of the box.
 
 Requires minimal 0.5 or later (extension API 2). Until 0.5 is on PyPI, `uv tool install mnml-agent` gets 0.4.0, which cannot read this layout: install minimal from git as shown under [Use](#use). An item written for a newer API than your minimal provides is not offered as is: `/ext` installs the newest older version of it that your minimal can run.
 
 ## Layout
 
-One top-level folder per frontend, each with the item categories inside:
+The repository is flat: one top-level folder per item category.
 
 ```
-console/<category>/     items for the plain console (extensions and tools)
-textual/<category>/     items for the Textual UI, plus the package: minimal-textual
+extensions/    general extensions
+themes/        colour themes
+tools/         tools for the model
+widgets/       interface components, panels and header logos
 ```
 
-`<category>` is `extensions`, `themes`, `tools` or `widgets`. minimal itself ships only the console and a UI-less server (`minimal serve`); the Textual UI lives here and is a frontend of its own. An item that suits several frontends is **copied** into each folder; the copies may diverge later. `/ext` shows only the folder of the frontend you are running, and installs into that frontend's own install folder (`~/.minimal/extensions/<folder>/`), so a frontend never loads another one's items.
-
-## Frontends
-
-You always run `minimal`. It starts whichever frontend is installed:
-
-| Frontend (`ui`) | Folder | What it is | Install |
-| --------------- | ------ | ---------- | ------- |
-| `console` | [`console`](console) | minimal's built-in line-by-line frontend; nothing to install. | (built in) |
-| `tui` | [`textual`](textual) | The Textual terminal UI (`minimal-textual`): runs inside minimal. | `uv tool install "mnml-agent @ git+https://github.com/RafaSG13/Minimal" --with "minimal-textual @ git+https://github.com/RafaSG13/minimal-marketplace#subdirectory=textual"` (from git until minimal 0.5 is on PyPI) |
-
-minimal finds Textual through its `minimal.frontends` entry point. With only the console, minimal runs it. With Textual installed, minimal runs it without asking. If you install another frontend as well, the first start asks which one (an arrow-key picker) and saves your choice as `ui` in `~/.minimal/settings.json`; change it later with that setting, or for one run with `minimal --ui console|tui`.
+Each category holds `<name>.py` files or `<name>/` package folders. `/ext` lists these four folders and installs into `~/.minimal/extensions/` (extensions) or its `themes/`, `tools/` and `widgets/` subfolders, or the same under a project's `./.minimal/extensions/`.
 
 ## Use
 
-Install minimal and the Textual UI (until 0.5 is on PyPI, from git; leave out `--with` for the console only):
+Install minimal, which includes the Textual terminal UI (until 0.5 is on PyPI, from git):
 
 ```bash
-uv tool install "mnml-agent @ git+https://github.com/RafaSG13/Minimal" \
-  --with "minimal-textual @ git+https://github.com/RafaSG13/minimal-marketplace#subdirectory=textual"
+uv tool install git+https://github.com/RafaSG13/Minimal
 ```
+
+Once 0.5 is on PyPI, `uv tool install mnml-agent` does the same.
 
 Then run `minimal` and, inside it:
 
@@ -50,101 +42,73 @@ Then run `minimal` and, inside it:
 /theme [name]                switch to an installed theme
 ```
 
-Each item can go into your global folder (`~/.minimal/extensions/<folder>/`, every project) or the current project's (`./.minimal/extensions/<folder>/`, loaded after `/trust`), where `<folder>` is the running frontend's (`console` or `textual`). Before installing globally, minimal shows a static scan of what the code can do and asks. If an item declares third-party packages, `/ext` offers to install them into minimal's Python.
+Each item can go into your global folder (`~/.minimal/extensions/`, every project) or the current project's (`./.minimal/extensions/`, loaded after `/trust`). Before installing globally, minimal shows a static scan of what the code can do and asks. If an item declares third-party packages, `/ext` offers to install them into minimal's Python.
 
 ## Catalogue
 
-Every item sits in the folder of each frontend it suits. The paths below are the marketplace folders.
+The paths below are the marketplace folders.
 
-### Console (`console/`)
-
-The plain console draws no panels or widgets: only extensions and tools.
-
-#### Extensions
+### Extensions
 
 | Item | Path | What it does |
 | ---- | ---- | ------------ |
-| `compact` | `console/extensions/compact.py` | Summarises the history into a new session when the context reaches a threshold, also in the middle of a long turn; adds `/compact`. |
-| `crystallize` | `console/extensions/crystallize.py` | Turns commands the model runs again and again into tools, and the calls you deny into `AGENTS.md` rules (`/crystallize`). |
-| `ledger` | `console/extensions/ledger.py` | A sidebar panel of the heaviest tool results in the context, flagging stale reads; `/prune` drops the ones you pick and continues in a new session. |
-| `lenses` | `console/extensions/lenses.py` | Shortens long `bash` output (passing Python test lines, repeated lines, head and tail) and keeps the full text in `.minimal/outputs/`. |
-| `loose_ends` | `console/extensions/loose_ends.py` | A `note` tool and backlog for what the model could not verify, noticed or left to do; `/ends` reviews it. |
-| `retry` | `console/extensions/retry.py` | Retries requests that fail with rate limits, overloads or network errors, with backoff, and can switch to a fallback provider. |
-| `scope_fence` | `console/extensions/scope_fence.py` | Blocks edits outside the paths you declare, or over a diff budget (`/fence`). |
-| `tripwire` | `console/extensions/tripwire.py` | Re-runs your invariant commands after file changes and tells the model which call broke them (`/tripwire`). |
+| `compact` | `extensions/compact.py` | Summarises the history into a new session when the context reaches a threshold, also in the middle of a long turn; adds `/compact`. |
+| `crystallize` | `extensions/crystallize.py` | Turns commands the model runs again and again into tools, and the calls you deny into `AGENTS.md` rules (`/crystallize`). |
+| `ledger` | `extensions/ledger.py` | A sidebar panel of the heaviest tool results in the context, flagging stale reads; `/prune` drops the ones you pick and continues in a new session. |
+| `lenses` | `extensions/lenses.py` | Shortens long `bash` output (passing Python test lines, repeated lines, head and tail) and keeps the full text in `.minimal/outputs/`. |
+| `loose_ends` | `extensions/loose_ends.py` | A `note` tool and backlog for what the model could not verify, noticed or left to do; `/ends` reviews it. |
+| `mermaid` | `extensions/mermaid.py` | Draws `mermaid` code blocks in replies as diagrams. Needs `termaid` (offered on install). |
+| `retry` | `extensions/retry.py` | Retries requests that fail with rate limits, overloads or network errors, with backoff, and can switch to a fallback provider. |
+| `scope_fence` | `extensions/scope_fence.py` | Blocks edits outside the paths you declare, or over a diff budget (`/fence`). |
+| `tripwire` | `extensions/tripwire.py` | Re-runs your invariant commands after file changes and tells the model which call broke them (`/tripwire`). |
 
-#### Tools
-
-| Item | Path | What it does |
-| ---- | ---- | ------------ |
-| `tools/subagent` | `console/tools/subagent.py` | Delegates a task to a fresh agent loop with its own history. |
-| `tools/web_search` | `console/tools/web_search.py` | Web search through the Brave Search API. Needs `BRAVE_API_KEY`. |
-
-### Textual (`textual/`)
-
-Everything the Textual UI can show. `animated_logo`, `command_menu`, `model_picker`, `style_pack` and `transcript_minimap` exist only here (`__frontend__ = "textual"`).
-
-#### Extensions
+### Tools
 
 | Item | Path | What it does |
 | ---- | ---- | ------------ |
-| `compact` | `textual/extensions/compact.py` | Summarises the history into a new session when the context reaches a threshold, also in the middle of a long turn; adds `/compact`. |
-| `crystallize` | `textual/extensions/crystallize.py` | Turns commands the model runs again and again into tools, and the calls you deny into `AGENTS.md` rules (`/crystallize`). |
-| `ledger` | `textual/extensions/ledger.py` | A sidebar panel of the heaviest tool results in the context, flagging stale reads; `/prune` drops the ones you pick and continues in a new session. |
-| `lenses` | `textual/extensions/lenses.py` | Shortens long `bash` output (passing Python test lines, repeated lines, head and tail) and keeps the full text in `.minimal/outputs/`. |
-| `loose_ends` | `textual/extensions/loose_ends.py` | A `note` tool and backlog for what the model could not verify, noticed or left to do; `/ends` reviews it. |
-| `mermaid` | `textual/extensions/mermaid.py` | Draws `mermaid` code blocks in replies as diagrams. Needs `termaid` (offered on install). |
-| `retry` | `textual/extensions/retry.py` | Retries requests that fail with rate limits, overloads or network errors, with backoff, and can switch to a fallback provider. |
-| `scope_fence` | `textual/extensions/scope_fence.py` | Blocks edits outside the paths you declare, or over a diff budget (`/fence`). |
-| `tripwire` | `textual/extensions/tripwire.py` | Re-runs your invariant commands after file changes and tells the model which call broke them (`/tripwire`). |
+| `tools/subagent` | `tools/subagent.py` | Delegates a task to a fresh agent loop with its own history. |
+| `tools/web_search` | `tools/web_search.py` | Web search through the Brave Search API. Needs `BRAVE_API_KEY`. |
 
-#### Tools
+### Themes
+
+`amber`, `catppuccin` (Mocha), `catppuccin_latte`, `cyberpunk`, `dark`, `dracula`, `forest`, `gruvbox`, `light`, `nord` and `tokyo_night`, in `themes/`. Install them from `/ext` → Themes and switch with `/theme`.
+
+### Widgets
 
 | Item | Path | What it does |
 | ---- | ---- | ------------ |
-| `tools/subagent` | `textual/tools/subagent.py` | Delegates a task to a fresh agent loop with its own history. |
-| `tools/web_search` | `textual/tools/web_search.py` | Web search through the Brave Search API. Needs `BRAVE_API_KEY`. |
-
-#### Themes
-
-`amber`, `catppuccin` (Mocha), `catppuccin_latte`, `cyberpunk`, `dark`, `dracula`, `forest`, `gruvbox`, `light`, `nord` and `tokyo_night`, in `textual/themes/`. Install them from `/ext` → Themes and switch with `/theme`.
-
-#### Widgets
-
-| Item | Path | What it does |
-| ---- | ---- | ------------ |
-| `widgets/animated_logo` | `textual/widgets/animated_logo.py` | The pixel-art logo with a gradient flowing across it (replaces `widgets/logo`: install one or the other). |
-| `widgets/callouts` | `textual/widgets/callouts.py` | Renders GitHub alert blockquotes (`> [!NOTE]`, `[!WARNING]`, …) as coloured callouts. |
-| `widgets/command_menu` | `textual/widgets/command_menu.py` | Type `/` to get every command, narrowed as you type and driven with the arrow keys. |
-| `widgets/context_gauge` | `textual/widgets/context_gauge.py` | A one-line bar of how full the context window is, with the prompt-cache hit rate. |
-| `widgets/files_touched` | `textual/widgets/files_touched.py` | Files read, edited and written this session, with added and removed lines. |
-| `widgets/git_panel` | `textual/widgets/git_panel.py` | Branch, ahead/behind, staged/unstaged/untracked counts and per-file diff stats. |
-| `widgets/live_activity` | `textual/widgets/live_activity.py` | The tool running now, its elapsed time and the turn's call count. |
-| `widgets/logo` | `textual/widgets/logo.py` | A pixel-art M and the minimal wordmark in the welcome header. |
-| `widgets/model_picker` | `textual/widgets/model_picker.py` | `/model` opens a list of the models your provider really offers. |
-| `widgets/plan_board` | `textual/widgets/plan_board.py` | A `plan` tool the model keeps updated, shown as a checklist with a progress bar. |
-| `widgets/style_pack` | `textual/widgets/style_pack.py` | Coloured gutters, a rounded composer and a compact or cozy density. |
-| `widgets/token_sparkline` | `textual/widgets/token_sparkline.py` | Input tokens per request as a sparkline, session totals and an estimated cost. |
-| `widgets/tool_timeline` | `textual/widgets/tool_timeline.py` | Each turn's tool calls as coloured marks, and calls per tool as bars. |
-| `widgets/transcript_minimap` | `textual/widgets/transcript_minimap.py` | One coloured cell per transcript block; click one to scroll to it. |
+| `widgets/animated_logo` | `widgets/animated_logo.py` | The pixel-art logo with a gradient flowing across it (replaces `widgets/logo`: install one or the other). |
+| `widgets/callouts` | `widgets/callouts.py` | Renders GitHub alert blockquotes (`> [!NOTE]`, `[!WARNING]`, …) as coloured callouts. |
+| `widgets/command_menu` | `widgets/command_menu.py` | Type `/` to get every command, narrowed as you type and driven with the arrow keys. |
+| `widgets/context_gauge` | `widgets/context_gauge.py` | A one-line bar of how full the context window is, with the prompt-cache hit rate. |
+| `widgets/files_touched` | `widgets/files_touched.py` | Files read, edited and written this session, with added and removed lines. |
+| `widgets/git_panel` | `widgets/git_panel.py` | Branch, ahead/behind, staged/unstaged/untracked counts and per-file diff stats. |
+| `widgets/live_activity` | `widgets/live_activity.py` | The tool running now, its elapsed time and the turn's call count. |
+| `widgets/logo` | `widgets/logo.py` | A pixel-art M and the minimal wordmark in the welcome header. |
+| `widgets/model_picker` | `widgets/model_picker.py` | `/model` opens a list of the models your provider really offers. |
+| `widgets/plan_board` | `widgets/plan_board.py` | A `plan` tool the model keeps updated, shown as a checklist with a progress bar. |
+| `widgets/style_pack` | `widgets/style_pack.py` | Coloured gutters, a rounded composer and a compact or cozy density. |
+| `widgets/token_sparkline` | `widgets/token_sparkline.py` | Input tokens per request as a sparkline, session totals and an estimated cost. |
+| `widgets/tool_timeline` | `widgets/tool_timeline.py` | Each turn's tool calls as coloured marks, and calls per tool as bars. |
+| `widgets/transcript_minimap` | `widgets/transcript_minimap.py` | One coloured cell per transcript block; click one to scroll to it. |
 
 ## Writing an item
 
 ### Layout
 
-An item lives in `<frontend>/<category>/`, where `<frontend>` is the folder of a frontend it runs under: `console/` or `textual/`. An item that suits several frontends gets one **copy** per folder, and the copies may diverge later: bump `__version__` in each copy you change. Each item is either a single `<name>.py` file or a package folder `<name>/` with an `__init__.py` plus helper modules (relative imports such as `from .helpers import X` work). There is no index: each item carries its own metadata. A top-level folder counts as a frontend folder when it holds at least one category folder; the other files and folders next to them (`textual/src/`, `textual/tests/`, `pyproject.toml`, …) are not items.
+An item lives in `<category>/`. Each item is either a single `<name>.py` file or a package folder `<name>/` with an `__init__.py` plus helper modules (relative imports such as `from .helpers import X` work). There is no index: each item carries its own metadata. Only the four category folders hold items; anything else next to them (`README.md`, `LICENSE`, `.github/`) does not.
 
-| Category      | Holds                                                        | Installed into (global, or `./.minimal/extensions/<folder>/…` per project) |
+| Category      | Holds                                                        | Installed into (global, or `./.minimal/extensions/…` per project) |
 |---------------|--------------------------------------------------------------|-------------------------------------------------|
-| `extensions/` | general extensions (commands, providers, hooks, …)           | `~/.minimal/extensions/<folder>/`               |
-| `themes/`     | colour themes (`minimal.register_theme`)                     | `~/.minimal/extensions/<folder>/themes/`        |
-| `tools/`      | tools for the model (`minimal.register_tool`)                | `~/.minimal/extensions/<folder>/tools/`         |
-| `widgets/`    | interface components, panels and header logos (`minimal.register_widget`, `minimal.register_panel`, `minimal.register_logo`) | `~/.minimal/extensions/<folder>/widgets/` |
+| `extensions/` | general extensions (commands, providers, hooks, …)           | `~/.minimal/extensions/`                        |
+| `themes/`     | colour themes (`minimal.register_theme`)                     | `~/.minimal/extensions/themes/`                 |
+| `tools/`      | tools for the model (`minimal.register_tool`)                | `~/.minimal/extensions/tools/`                  |
+| `widgets/`    | interface components, panels and header logos (`minimal.register_widget`, `minimal.register_panel`, `minimal.register_logo`) | `~/.minimal/extensions/widgets/` |
 
-Installing keeps the frontend folder: `textual/widgets/style_pack.py` becomes `~/.minimal/extensions/textual/widgets/style_pack.py`, id `widgets/style_pack`. Only the running frontend's install folder loads.
+Installing keeps the category folder: `widgets/style_pack.py` becomes `~/.minimal/extensions/widgets/style_pack.py`, id `widgets/style_pack`.
 
 ```
-textual/widgets/
+widgets/
   context_gauge.py        a single-file item
   my_panel/               a package item
     __init__.py           docstring, __version__, __api__, register(minimal)
@@ -160,7 +124,6 @@ The category only groups items: any item may register anything. A folder and a f
 - **Version:** a top-level `__version__ = "1.0"` string (required). Bump it on every change so installed copies are offered the update.
 - **API:** a top-level `__api__ = "2"` string (required): the [minimal API version](https://github.com/RafaSG13/Minimal/blob/main/docs/extensions.md#api-versions) the item is written for. `"2"` runs on any 2.x, `"2.1"` on 2.1 or a later 2.x. minimal does not load an item without it, or one written for another major version, and `/ext` does not install it.
 - **Dependencies:** an optional top-level `__dependencies__ = ["termaid>=0.12"]` listing the third-party packages the item imports. `/ext` offers to install the missing ones, and CI installs them before checking the item.
-- **Frontend:** an optional top-level `__frontend__ = "textual"` for an item that imports `textual` or `rich` (say, a widget built with `register_widget`). It loads only in the Textual UI, and an item that sets `__frontend__ = X` must live in the folder `X/` (`textual/widgets/`): `minimal ext check` fails it anywhere else. To only show text, use `minimal.register_panel` or `minimal.register_renderer` (API 1.3) instead: they work in every frontend, so they need no `__frontend__` and can be copied into `console/` and `textual/`.
 - The item must define a top-level `register(minimal)` function. Import only from `minimal.api`; everything else in minimal is internal.
 
 A theme needs only `background`, `foreground` and `accent`; minimal derives the other colours:
@@ -209,9 +172,9 @@ Before opening a pull request, validate every item from the repository root:
 minimal ext check --install-deps .
 ```
 
-It installs the packages the items declare in `__dependencies__`, loads each item of every frontend folder without a terminal and prints `ok`, `WARN` (an optional module is missing) or `FAIL` per item; it exits non-zero on any `FAIL`. An item that imports `textual` or `rich` without `__frontend__ = "textual"` fails too, and so does one whose `__frontend__` names another folder than the one it is in. CI runs the same check on every pull request, with minimal's current `main` (and Textual, which the textual items import), so an item that the next minimal API would break fails here before that minimal is released. The Textual frontend has its own unit tests (`textual/tests`).
+It installs the packages the items declare in `__dependencies__`, loads each item of every category folder without a terminal and prints `ok`, `WARN` (an optional module is missing) or `FAIL` per item; it exits non-zero on any `FAIL`. CI runs the same check on every pull request, with minimal's current `main`, so an item that the next minimal API would break fails here before that minimal is released.
 
-Publishing never pushes to `main`; items are added by merging the pull request. Without push access to this repository, fork it and set `MINIMAL_MARKETPLACE` to your fork's URL before `/ext publish`. `/ext publish` puts the item under `<folder>/<category>/` of the frontend you are running (`~/.minimal/extensions/textual/themes/ocean.py` → `textual/themes/`), else in `extensions/`. To offer an item to another frontend, publish it again from that frontend, or copy it by hand. When you add an item, add its row to the [catalogue](#catalogue) in the same pull request. By contributing an item you agree to license it under the MIT License below.
+Publishing never pushes to `main`; items are added by merging the pull request. Without push access to this repository, fork it and set `MINIMAL_MARKETPLACE` to your fork's URL before `/ext publish`. `/ext publish` puts the item under the category of the folder it comes from (`~/.minimal/extensions/themes/ocean.py` → `themes/`), else in `extensions/`. When you add an item, add its row to the [catalogue](#catalogue) in the same pull request. By contributing an item you agree to license it under the MIT License below.
 
 ## License
 

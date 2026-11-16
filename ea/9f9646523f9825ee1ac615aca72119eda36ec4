@@ -1,0 +1,16 @@
+README.md
+  h_e81853c41416fb 53
+extensions/claude_subscription.py
+  h_e81853c41416fb 1-320
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "ea9f9646523f9825ee1ac615aca72119eda36ec4",
+  "prompts": {},
+  "humans": {
+    "h_e81853c41416fb": {
+      "author": "RafaSG13 <rafasrrg13@gmail.com>"
+    }
+  }
+}

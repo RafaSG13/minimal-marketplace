@@ -8,7 +8,7 @@
 
 Extensions, tools, widgets and themes for [minimal](https://github.com/RafaSG13/Minimal), the terminal coding-agent harness. This is minimal's default marketplace: `/ext` lists it out of the box.
 
-Requires minimal 0.5 or later (extension API 2). Until 0.5 is on PyPI, `uv tool install mnml-agent` gets 0.4.0, which cannot read this layout: install minimal from git as shown under [Use](#use). An item written for a newer API than your minimal provides is not offered as is: `/ext` installs the newest older version of it that your minimal can run.
+Requires minimal 0.5 or later (extension API 2). An item written for a newer API than your minimal provides is not offered as is: `/ext` installs the newest older version of it that your minimal can run.
 
 ## Layout
 
@@ -25,13 +25,11 @@ Each category holds `<name>.py` files or `<name>/` package folders. `/ext` lists
 
 ## Use
 
-Install minimal, which includes the Textual terminal UI (until 0.5 is on PyPI, from git):
+Install minimal, which includes the Textual terminal UI:
 
 ```bash
-uv tool install git+https://github.com/RafaSG13/Minimal
+uv tool install mnml-agent
 ```
-
-Once 0.5 is on PyPI, `uv tool install mnml-agent` does the same.
 
 Then run `minimal` and, inside it:
 

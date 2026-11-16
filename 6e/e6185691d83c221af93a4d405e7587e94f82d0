@@ -1,0 +1,42 @@
+README.md
+  h_e81853c41416fb 34
+extensions/go_tui/__init__.py
+  h_e81853c41416fb 1-354
+extensions/go_tui/blocks.go
+  h_e81853c41416fb 1-319
+extensions/go_tui/go.mod
+  h_e81853c41416fb 1-39
+extensions/go_tui/go.sum
+  h_e81853c41416fb 1-73
+extensions/go_tui/main.go
+  h_e81853c41416fb 1-41
+extensions/go_tui/modal.go
+  h_e81853c41416fb 1-162
+extensions/go_tui/model.go
+  h_e81853c41416fb 1-627
+extensions/go_tui/protocol.go
+  h_e81853c41416fb 1-163
+extensions/go_tui/reply.go
+  h_e81853c41416fb 1-115
+extensions/go_tui/segments.go
+  h_e81853c41416fb 1-127
+extensions/go_tui/styles.go
+  h_e81853c41416fb 1-72
+extensions/go_tui/tty_unix.go
+  h_e81853c41416fb 1-14
+extensions/go_tui/tty_windows.go
+  h_e81853c41416fb 1-19
+extensions/go_tui/views.py
+  h_e81853c41416fb 1-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "6ee6185691d83c221af93a4d405e7587e94f82d0",
+  "prompts": {},
+  "humans": {
+    "h_e81853c41416fb": {
+      "author": "RafaSG13 <rafasrrg13@gmail.com>"
+    }
+  }
+}

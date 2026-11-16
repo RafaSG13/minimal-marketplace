@@ -50,6 +50,7 @@ The paths below are the marketplace folders.
 
 | Item | Path | What it does |
 | ---- | ---- | ------------ |
+| `claude_subscription` | `extensions/claude_subscription.py` | The `claude` provider: a Claude Pro/Max subscription through a browser login instead of an API key (`minimal --login claude`). Needs minimal 0.6; moves a login kept by an older minimal. |
 | `compact` | `extensions/compact.py` | Summarises the history into a new session when the context reaches a threshold, also in the middle of a long turn; adds `/compact`. |
 | `crystallize` | `extensions/crystallize.py` | Turns commands the model runs again and again into tools, and the calls you deny into `AGENTS.md` rules (`/crystallize`). |
 | `ledger` | `extensions/ledger.py` | A sidebar panel of the heaviest tool results in the context, flagging stale reads; `/prune` drops the ones you pick and continues in a new session. |

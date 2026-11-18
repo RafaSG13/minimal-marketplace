@@ -58,6 +58,7 @@ The paths below are the marketplace folders.
 | `lenses` | `extensions/lenses.py` | Shortens long `bash` output (passing Python test lines, repeated lines, head and tail) and keeps the full text in `.minimal/outputs/`. |
 | `loose_ends` | `extensions/loose_ends.py` | A `note` tool and backlog for what the model could not verify, noticed or left to do; `/ends` reviews it. |
 | `mermaid` | `extensions/mermaid.py` | Draws `mermaid` code blocks in replies as diagrams. Needs `termaid` (offered on install). |
+| `modes` | `extensions/modes.py` | Plan and build modes: investigate read-only and end with a numbered plan, approve it at the gate when you switch to build, and optionally start in a chosen mode (`/mode`, `Shift+Tab`). Needs minimal 0.7. |
 | `retry` | `extensions/retry.py` | Retries requests that fail with rate limits, overloads or network errors, with backoff, and can switch to a fallback provider. |
 | `scope_fence` | `extensions/scope_fence.py` | Blocks edits outside the paths you declare, or over a diff budget (`/fence`). |
 | `term_title` | `extensions/term_title.py` | Names your terminal window or tab `minimal: <project> [idle\|working]` and puts the old title back on exit. |
@@ -69,6 +70,7 @@ The paths below are the marketplace folders.
 | Item | Path | What it does |
 | ---- | ---- | ------------ |
 | `tools/ask_user` | `tools/ask_user.py` | Lets the model ask you a clarifying question (free text or pick one option) instead of guessing. |
+| `tools/delegate` | `tools/delegate.py` | Hands a self-contained task to a fresh agent and returns only its final message; tool allow-list, model, turn limit and role name; fails with its status instead of hanging. Supersedes `tools/subagent`. Needs minimal 0.7. |
 | `tools/subagent` | `tools/subagent.py` | Delegates a task to a fresh agent loop with its own history. |
 | `tools/web_search` | `tools/web_search.py` | Web search through the Brave Search API. Needs `BRAVE_API_KEY`. |
 
@@ -80,6 +82,7 @@ The paths below are the marketplace folders.
 
 | Item | Path | What it does |
 | ---- | ---- | ------------ |
+| `widgets/agent_monitor` | `widgets/agent_monitor.py` | Live agent tree in the sidebar (status, model, calls, elapsed) and `/agents` to inspect any agent and interrupt a running one. Needs minimal 0.7. |
 | `widgets/animated_logo` | `widgets/animated_logo.py` | The pixel-art logo with a gradient flowing across it (replaces `widgets/logo`: install one or the other). |
 | `widgets/callouts` | `widgets/callouts.py` | Renders GitHub alert blockquotes (`> [!NOTE]`, `[!WARNING]`, …) as coloured callouts. |
 | `widgets/command_menu` | `widgets/command_menu.py` | Type `/` to get every command, narrowed as you type and driven with the arrow keys. |

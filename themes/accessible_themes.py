@@ -1,7 +1,8 @@
 """High-contrast dark and light themes, every text colour at least 4.5:1 (WCAG AA). Install it with ``/ext``."""
 
-__version__ = "1.0"
+__version__ = "1.1"
 __api__ = "2"
+__tags__ = ["theme"]
 
 THEMES = {
     "high_contrast_dark": {

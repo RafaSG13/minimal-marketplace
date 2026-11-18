@@ -16,8 +16,9 @@ try:
 except ImportError:
     render = None
 
-__version__ = "1.6"
+__version__ = "1.7"
 __api__ = "2"
+__tags__ = ["ui"]
 __dependencies__ = ["termaid>=0.12"]
 
 INSTALL_HINT = (

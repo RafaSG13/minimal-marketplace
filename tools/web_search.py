@@ -12,8 +12,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-__version__ = "1.1"
+__version__ = "1.2"
 __api__ = "2"
+__tags__ = ["workflow"]
 
 ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
 DEFAULT_COUNT = 5

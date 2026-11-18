@@ -24,8 +24,9 @@ from textual.widget import Widget
 from textual.widgets import Label, OptionList, Static
 from textual.widgets.option_list import Option
 
-__version__ = "1.0"
+__version__ = "1.1"
 __api__ = "2.2"
+__tags__ = ["agents", "ui", "diagnostics"]
 
 PANEL = "agent_monitor"
 BROWSER = "agent_browser"

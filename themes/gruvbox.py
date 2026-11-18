@@ -1,7 +1,8 @@
 """Gruvbox: retro dark theme with warm, earthy colours and a yellow accent."""
 
-__version__ = "1.2"
+__version__ = "1.3"
 __api__ = "2"
+__tags__ = ["theme"]
 
 
 def register(minimal):

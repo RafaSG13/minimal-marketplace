@@ -1,7 +1,8 @@
 """Context gauge: a one-line bar of how full the context window is, with the prompt-cache hit rate."""
 
-__version__ = "1.4"
+__version__ = "1.5"
 __api__ = "2"
+__tags__ = ["context", "ui", "diagnostics"]
 
 DEFAULTS = {"limit": 200_000, "warn": 0.5, "crit": 0.8}
 """Context window size in tokens, and the fill fractions from which the bar turns warning / error."""

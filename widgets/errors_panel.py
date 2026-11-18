@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-__version__ = "1.0"
+__version__ = "1.1"
 __api__ = "2"
+__tags__ = ["diagnostics", "ui"]
 
 DEFAULTS = {"max": 5, "width": 30}
 """``max``: errors listed; ``width``: columns of one row (the sidebar's usable width is 34)."""

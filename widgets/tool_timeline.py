@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from collections import Counter
 
-__version__ = "1.3"
+__version__ = "1.4"
 __api__ = "2"
+__tags__ = ["diagnostics", "ui"]
 
 TURNS = 8
 """Most recent turns shown, one row each."""

@@ -9,8 +9,9 @@ yes sends "The plan is approved. Execute it.", no returns to ``plan``. The ``def
 Install it with ``/ext``.
 """
 
-__version__ = "1.0"
+__version__ = "1.1"
 __api__ = "2.2"
+__tags__ = ["workflow", "safety"]
 
 import re
 import threading

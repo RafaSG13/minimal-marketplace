@@ -8,8 +8,9 @@ minimal's data folder for this project (`minimal.data_dir()`), never in the repo
 a repository must not be able to choose what runs when you open it.
 """
 
-__version__ = "2.4"
+__version__ = "2.5"
 __api__ = "2"
+__tags__ = ["safety", "diagnostics"]
 
 import hashlib
 import json

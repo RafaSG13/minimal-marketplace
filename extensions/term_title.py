@@ -7,8 +7,9 @@ from pathlib import Path
 
 from textual.widgets import Static
 
-__version__ = "1.0"
+__version__ = "1.1"
 __api__ = "2"
+__tags__ = ["ui"]
 
 NAME = "term_title"
 

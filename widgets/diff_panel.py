@@ -7,8 +7,9 @@ import threading
 import unicodedata
 from pathlib import Path
 
-__version__ = "1.0"
+__version__ = "1.1"
 __api__ = "2"
+__tags__ = ["git", "ui"]
 
 DEFAULTS = {"max_file_bytes": 200_000, "max_hunks": 6, "max_lines": 24, "context": 2}
 """Largest file diffed (bigger ones are listed, not diffed), hunks and lines shown in the panel, context lines."""

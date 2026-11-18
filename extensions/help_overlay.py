@@ -1,7 +1,8 @@
 """Help overlay: /keys lists the key bindings and every slash command, built-in and extension. Install it with `/ext`."""
 
-__version__ = "1.0"
+__version__ = "1.1"
 __api__ = "2"
+__tags__ = ["ui"]
 
 KEYS = (
     ("Enter", "Send the message"),

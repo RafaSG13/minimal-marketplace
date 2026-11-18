@@ -4,8 +4,9 @@
 and for calls you denied, and lets you keep them as a tool or a rule.
 """
 
-__version__ = "1.4"
+__version__ = "1.5"
 __api__ = "2"
+__tags__ = ["workflow"]
 
 import json
 import re

@@ -10,8 +10,9 @@ tool calls, is asked for the same confirmations, and can interrupt it.
 Install it with ``/ext``.
 """
 
-__version__ = "2.1"
+__version__ = "2.2"
 __api__ = "2"
+__tags__ = ["agents"]
 
 NAME = "subagent"
 

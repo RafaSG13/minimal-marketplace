@@ -36,6 +36,7 @@ Then run `minimal` and, inside it:
 ```
 /ext                         pick a marketplace and a category, then tick items to install, update or remove
 /ext list                    installed items, by scope and category
+/ext search <query> [category]  search every marketplace by name, description or tag
 /ext publish <path> [name]   propose a file or package folder: pushes a publish/<name>-<timestamp> branch and opens a pull request
 /theme [name]                switch to an installed theme
 ```
@@ -52,6 +53,7 @@ The paths below are the marketplace folders.
 | ---- | ---- | ------------ |
 | `claude_subscription` | `extensions/claude_subscription.py` | The `claude` provider: a Claude Pro/Max subscription through a browser login instead of an API key (`minimal --login claude`). Needs minimal 0.6; moves a login kept by an older minimal. |
 | `compact` | `extensions/compact.py` | Summarises the history into a new session when the context reaches a threshold, also in the middle of a long turn; adds `/compact`. |
+| `creator` | `extensions/creator.py` | Has the model create extensions, tools, widgets and themes: skeletons (`ext_new`, `ext_template`), the API source, validation, version bumps, removal, a catalogue row for publishing, and `/create <kind> <name> [description]`. |
 | `crystallize` | `extensions/crystallize.py` | Turns commands the model runs again and again into tools, and the calls you deny into `AGENTS.md` rules (`/crystallize`). |
 | `help_overlay` | `extensions/help_overlay.py` | `/keys` (alias `/shortcuts`) lists the key bindings and every slash command, with an optional filter. |
 | `ledger` | `extensions/ledger.py` | A sidebar panel of the heaviest tool results in the context, flagging stale reads; `/prune` drops the ones you pick and continues in a new session. |
@@ -76,7 +78,22 @@ The paths below are the marketplace folders.
 
 ### Themes
 
-`accessible_themes` (high-contrast dark and light, every text colour at least 4.5:1: WCAG AA), `amber`, `catppuccin` (Mocha), `catppuccin_latte`, `cyberpunk`, `dark`, `dracula`, `forest`, `gruvbox`, `light`, `nord` and `tokyo_night`, in `themes/`. Install them from `/ext` → Themes and switch with `/theme`.
+Install them from `/ext` → Themes and switch with `/theme`.
+
+| Item | Path | What it does |
+| ---- | ---- | ------------ |
+| `themes/accessible_themes` | `themes/accessible_themes.py` | High-contrast dark and light themes, every text colour at least 4.5:1 (WCAG AA). |
+| `themes/amber` | `themes/amber.py` | Dark palette with a yellow accent. |
+| `themes/catppuccin` | `themes/catppuccin.py` | Mocha: a soft pastel dark theme with a mauve accent. |
+| `themes/catppuccin_latte` | `themes/catppuccin_latte.py` | The light Catppuccin flavour, warm and creamy with a mauve accent. |
+| `themes/cyberpunk` | `themes/cyberpunk.py` | Near-black violet with neon pink and cyan. |
+| `themes/dark` | `themes/dark.py` | A neutral dark editor palette with a blue accent. |
+| `themes/dracula` | `themes/dracula.py` | The classic purple-and-pink dark theme. |
+| `themes/forest` | `themes/forest.py` | Calm dark green with moss and sage tones. |
+| `themes/gruvbox` | `themes/gruvbox.py` | Retro dark theme with warm, earthy colours and a yellow accent. |
+| `themes/light` | `themes/light.py` | A light editor palette with a blue accent. |
+| `themes/nord` | `themes/nord.py` | Arctic, north-bluish dark theme. |
+| `themes/tokyo_night` | `themes/tokyo_night.py` | Deep blue-violet dark theme inspired by Tokyo city lights. |
 
 ### Widgets
 
@@ -134,6 +151,7 @@ The category only groups items: any item may register anything. A folder and a f
 - **Version:** a top-level `__version__ = "1.0"` string (required). Bump it on every change so installed copies are offered the update.
 - **API:** a top-level `__api__ = "2"` string (required): the [minimal API version](https://github.com/RafaSG13/Minimal/blob/main/docs/extensions.md#api-versions) the item is written for. `"2"` runs on any 2.x, `"2.1"` on 2.1 or a later 2.x. minimal does not load an item without it, or one written for another major version, and `/ext` does not install it.
 - **Dependencies:** an optional top-level `__dependencies__ = ["termaid>=0.12"]` listing the third-party packages the item imports. `/ext` offers to install the missing ones, and CI installs them before checking the item.
+- **Tags:** an optional top-level `__tags__ = ["git", "ui"]`: keywords that `/ext search` and the model's `ext_search` match besides the name and description. Use only these: `git`, `ui`, `safety`, `context`, `agents`, `provider`, `theme`, `diagnostics`, `workflow` (CI rejects any other).
 - The item must define a top-level `register(minimal)` function. Import only from `minimal.api`; everything else in minimal is internal.
 
 A theme needs only `background`, `foreground` and `accent`; minimal derives the other colours:

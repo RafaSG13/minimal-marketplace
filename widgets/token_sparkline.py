@@ -1,7 +1,8 @@
 """Token sparkline: input tokens per request as a sparkline, session totals and an estimated cost."""
 
-__version__ = "1.4"
+__version__ = "1.5"
 __api__ = "2"
+__tags__ = ["context", "diagnostics", "ui"]
 
 # Model-name prefix -> USD per million tokens (input, output, cache_read, cache_write).
 # Checked 2026-11-10 against platform.claude.com/docs/en/about-claude/pricing,

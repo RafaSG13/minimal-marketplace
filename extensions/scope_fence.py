@@ -4,8 +4,9 @@
 many lines it may change; /fence off removes the fence.
 """
 
-__version__ = "1.5"
+__version__ = "1.6"
 __api__ = "2"
+__tags__ = ["safety"]
 
 import json
 import shlex

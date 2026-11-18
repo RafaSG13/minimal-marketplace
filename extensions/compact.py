@@ -17,8 +17,9 @@ Install it with ``/ext``.
 
 import sys
 
-__version__ = "2.2"
+__version__ = "2.3"
 __api__ = "2"
+__tags__ = ["context", "workflow"]
 
 COMPACT_AT = 100_000
 """Default context tokens (input + output of the last reply) that trigger a compaction."""

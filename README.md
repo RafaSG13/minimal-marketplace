@@ -65,6 +65,7 @@ The paths below are the marketplace folders.
 
 | Item | Path | What it does |
 | ---- | ---- | ------------ |
+| `tools/ask_user` | `tools/ask_user.py` | Lets the model ask you a clarifying question (free text or pick one option) instead of guessing. |
 | `tools/subagent` | `tools/subagent.py` | Delegates a task to a fresh agent loop with its own history. |
 | `tools/web_search` | `tools/web_search.py` | Web search through the Brave Search API. Needs `BRAVE_API_KEY`. |
 

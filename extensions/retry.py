@@ -12,8 +12,9 @@ ends the turn as before. Settings in settings.json::
 Install it with ``/ext``.
 """
 
-__version__ = "1.1"
+__version__ = "1.2"
 __api__ = "2"
+__tags__ = ["provider"]
 
 RETRYABLE_STATUS = {408, 409, 425, 429, 500, 502, 503, 504, 529}
 """HTTP statuses worth another try: timeouts, conflicts, rate limits and server overloads."""

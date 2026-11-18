@@ -2,8 +2,9 @@
 
 from minimal.api import theme
 
-__version__ = "1.3"
+__version__ = "1.4"
 __api__ = "2"
+__tags__ = ["workflow", "ui"]
 
 STATUSES = ("pending", "active", "done")
 MAX_STEPS = 20

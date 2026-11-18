@@ -6,8 +6,9 @@ import os
 from difflib import SequenceMatcher
 from pathlib import Path
 
-__version__ = "1.4"
+__version__ = "1.5"
 __api__ = "2"
+__tags__ = ["context", "ui"]
 
 ROWS = 12
 """Most files listed, most recently touched first."""

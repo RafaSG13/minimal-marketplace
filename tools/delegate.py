@@ -11,8 +11,9 @@ not start delegates unless the ``max_depth`` setting allows it.
 Install it with ``/ext``.
 """
 
-__version__ = "1.0"
+__version__ = "1.1"
 __api__ = "2.2"
+__tags__ = ["agents"]
 
 NAME = "delegate"
 DEFAULT_ROLE = "delegate"

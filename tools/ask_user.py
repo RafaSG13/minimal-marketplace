@@ -7,8 +7,9 @@ model gets an error telling it to continue with an explicit assumption.
 Install it with ``/ext``.
 """
 
-__version__ = "1.0"
+__version__ = "1.1"
 __api__ = "2"
+__tags__ = ["workflow"]
 
 MAX_OPTIONS = 9
 

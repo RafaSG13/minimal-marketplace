@@ -4,8 +4,9 @@ The model records what it could not verify, noticed or left undone with the
 note tool; /ends lets you review the backlog and close the finished items.
 """
 
-__version__ = "1.5"
+__version__ = "1.6"
 __api__ = "2"
+__tags__ = ["workflow"]
 
 import json
 from datetime import datetime, timezone

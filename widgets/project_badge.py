@@ -10,8 +10,9 @@ from pathlib import Path
 
 from minimal.api import WIDGET_AREAS, theme
 
-__version__ = "1.0"
+__version__ = "1.1"
 __api__ = "2"
+__tags__ = ["git", "ui"]
 
 DEFAULTS = {
     "area": "sidebar",

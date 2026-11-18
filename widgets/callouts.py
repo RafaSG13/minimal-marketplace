@@ -1,7 +1,8 @@
 """Callouts: draws GitHub alert blockquotes (> [!NOTE], [!TIP], [!IMPORTANT], [!WARNING], [!CAUTION]) as coloured callouts."""
 
-__version__ = "1.3"
+__version__ = "1.4"
 __api__ = "2"
+__tags__ = ["ui"]
 
 KINDS = {
     "note": ("ⓘ", "Note", "accent"),

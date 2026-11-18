@@ -14,8 +14,9 @@ import json
 import os
 import re
 
-__version__ = "1.0"
+__version__ = "1.1"
 __api__ = "2"
+__tags__ = ["theme"]
 
 USAGE = "usage: /theme_builder <name> <accent #rrggbb> [dark|light]   e.g. /theme_builder ocean #4fc3f7 dark"
 MODES = ("dark", "light")

@@ -9,8 +9,9 @@ from pathlib import Path
 
 from minimal.api import STATUS_SIDES, theme
 
-__version__ = "1.0"
+__version__ = "1.1"
 __api__ = "2"
+__tags__ = ["ui"]
 
 SEGMENTS = ("model", "cwd", "branch", "title", "session", "turns", "tokens", "usage", "cost")
 """Every segment a ``segments`` entry may name; they are drawn in the order listed."""

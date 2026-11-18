@@ -12,8 +12,9 @@ subscription tokens require; whether that fits Anthropic's terms for your plan i
 Install it with `/ext`, or `minimal ext install claude_subscription` before the first start.
 """
 
-__version__ = "1.0"
+__version__ = "1.1"
 __api__ = "2.1"
+__tags__ = ["provider"]
 
 import base64
 import dataclasses

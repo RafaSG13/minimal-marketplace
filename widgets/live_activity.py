@@ -4,8 +4,9 @@ import time
 
 from minimal.api import theme
 
-__version__ = "1.3"
+__version__ = "1.4"
 __api__ = "2"
+__tags__ = ["ui", "diagnostics"]
 
 
 def _label(call: dict) -> str:

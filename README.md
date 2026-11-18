@@ -53,12 +53,15 @@ The paths below are the marketplace folders.
 | `claude_subscription` | `extensions/claude_subscription.py` | The `claude` provider: a Claude Pro/Max subscription through a browser login instead of an API key (`minimal --login claude`). Needs minimal 0.6; moves a login kept by an older minimal. |
 | `compact` | `extensions/compact.py` | Summarises the history into a new session when the context reaches a threshold, also in the middle of a long turn; adds `/compact`. |
 | `crystallize` | `extensions/crystallize.py` | Turns commands the model runs again and again into tools, and the calls you deny into `AGENTS.md` rules (`/crystallize`). |
+| `help_overlay` | `extensions/help_overlay.py` | `/keys` (alias `/shortcuts`) lists the key bindings and every slash command, with an optional filter. |
 | `ledger` | `extensions/ledger.py` | A sidebar panel of the heaviest tool results in the context, flagging stale reads; `/prune` drops the ones you pick and continues in a new session. |
 | `lenses` | `extensions/lenses.py` | Shortens long `bash` output (passing Python test lines, repeated lines, head and tail) and keeps the full text in `.minimal/outputs/`. |
 | `loose_ends` | `extensions/loose_ends.py` | A `note` tool and backlog for what the model could not verify, noticed or left to do; `/ends` reviews it. |
 | `mermaid` | `extensions/mermaid.py` | Draws `mermaid` code blocks in replies as diagrams. Needs `termaid` (offered on install). |
 | `retry` | `extensions/retry.py` | Retries requests that fail with rate limits, overloads or network errors, with backoff, and can switch to a fallback provider. |
 | `scope_fence` | `extensions/scope_fence.py` | Blocks edits outside the paths you declare, or over a diff budget (`/fence`). |
+| `term_title` | `extensions/term_title.py` | Names your terminal window or tab `minimal: <project> [idle\|working]` and puts the old title back on exit. |
+| `theme_builder` | `extensions/theme_builder.py` | `/theme_builder <name> <#rrggbb> [dark\|light]` builds a full theme from one accent colour and keeps it across restarts. |
 | `tripwire` | `extensions/tripwire.py` | Re-runs your invariant commands after file changes and tells the model which call broke them (`/tripwire`). |
 
 ### Tools
@@ -71,7 +74,7 @@ The paths below are the marketplace folders.
 
 ### Themes
 
-`amber`, `catppuccin` (Mocha), `catppuccin_latte`, `cyberpunk`, `dark`, `dracula`, `forest`, `gruvbox`, `light`, `nord` and `tokyo_night`, in `themes/`. Install them from `/ext` → Themes and switch with `/theme`.
+`accessible_themes` (high-contrast dark and light, every text colour at least 4.5:1: WCAG AA), `amber`, `catppuccin` (Mocha), `catppuccin_latte`, `cyberpunk`, `dark`, `dracula`, `forest`, `gruvbox`, `light`, `nord` and `tokyo_night`, in `themes/`. Install them from `/ext` → Themes and switch with `/theme`.
 
 ### Widgets
 
@@ -81,12 +84,16 @@ The paths below are the marketplace folders.
 | `widgets/callouts` | `widgets/callouts.py` | Renders GitHub alert blockquotes (`> [!NOTE]`, `[!WARNING]`, …) as coloured callouts. |
 | `widgets/command_menu` | `widgets/command_menu.py` | Type `/` to get every command, narrowed as you type and driven with the arrow keys. |
 | `widgets/context_gauge` | `widgets/context_gauge.py` | A one-line bar of how full the context window is, with the prompt-cache hit rate. |
+| `widgets/diff_panel` | `widgets/diff_panel.py` | Sidebar panel with a compact coloured diff (+n −m per file) of the files the model edited or wrote this turn; `/diff` prints the full unified diff. |
+| `widgets/errors_panel` | `widgets/errors_panel.py` | A sidebar panel with the session's last tool and provider errors, repeat counts, and `/errors clear`. |
 | `widgets/files_touched` | `widgets/files_touched.py` | Files read, edited and written this session, with added and removed lines. |
 | `widgets/git_panel` | `widgets/git_panel.py` | Branch, ahead/behind, staged/unstaged/untracked counts and per-file diff stats. |
 | `widgets/live_activity` | `widgets/live_activity.py` | The tool running now, its elapsed time and the turn's call count. |
 | `widgets/logo` | `widgets/logo.py` | A pixel-art M and the minimal wordmark in the welcome header. |
 | `widgets/model_picker` | `widgets/model_picker.py` | `/model` opens a list of the models your provider really offers. |
 | `widgets/plan_board` | `widgets/plan_board.py` | A `plan` tool the model keeps updated, shown as a checklist with a progress bar. |
+| `widgets/project_badge` | `widgets/project_badge.py` | A small panel with the project folder name and git branch, marked when the repo has changes. |
+| `widgets/statusline_kit` | `widgets/statusline_kit.py` | Choose which extra status-line segments to show and in what order: session title, turns, token usage, cost, model, folder, git branch. |
 | `widgets/style_pack` | `widgets/style_pack.py` | Coloured gutters, a rounded composer and a compact or cozy density. |
 | `widgets/token_sparkline` | `widgets/token_sparkline.py` | Input tokens per request as a sparkline, session totals and an estimated cost. |
 | `widgets/tool_timeline` | `widgets/tool_timeline.py` | Each turn's tool calls as coloured marks, and calls per tool as bars. |

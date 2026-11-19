@@ -1,0 +1,118 @@
+.github/workflows/check.yml
+  h_e81853c41416fb 21,25-26
+README.md
+  h_e81853c41416fb 39,56,81-96,154
+extensions/claude_subscription.py
+  h_e81853c41416fb 15,17
+extensions/compact.py
+  h_e81853c41416fb 20,22
+extensions/creator.py
+  h_e81853c41416fb 1-386
+extensions/crystallize.py
+  h_e81853c41416fb 7,9
+extensions/help_overlay.py
+  h_e81853c41416fb 3,5
+extensions/ledger.py
+  h_e81853c41416fb 7,9
+extensions/lenses.py
+  h_e81853c41416fb 20,22
+extensions/loose_ends.py
+  h_e81853c41416fb 7,9
+extensions/mermaid.py
+  h_e81853c41416fb 19,21
+extensions/modes.py
+  h_e81853c41416fb 12,14
+extensions/retry.py
+  h_e81853c41416fb 15,17
+extensions/scope_fence.py
+  h_e81853c41416fb 7,9
+extensions/term_title.py
+  h_e81853c41416fb 10,12
+extensions/theme_builder.py
+  h_e81853c41416fb 17,19
+extensions/tripwire.py
+  h_e81853c41416fb 11,13
+scripts/check_items.py
+  h_e81853c41416fb 1-133
+themes/accessible_themes.py
+  h_e81853c41416fb 3,5
+themes/amber.py
+  h_e81853c41416fb 3,5
+themes/catppuccin.py
+  h_e81853c41416fb 3,5
+themes/catppuccin_latte.py
+  h_e81853c41416fb 3,5
+themes/cyberpunk.py
+  h_e81853c41416fb 3,5
+themes/dark.py
+  h_e81853c41416fb 3,5
+themes/dracula.py
+  h_e81853c41416fb 3,5
+themes/forest.py
+  h_e81853c41416fb 3,5
+themes/gruvbox.py
+  h_e81853c41416fb 3,5
+themes/light.py
+  h_e81853c41416fb 3,5
+themes/nord.py
+  h_e81853c41416fb 3,5
+themes/tokyo_night.py
+  h_e81853c41416fb 3,5
+tools/ask_user.py
+  h_e81853c41416fb 10,12
+tools/delegate.py
+  h_e81853c41416fb 14,16
+tools/subagent.py
+  h_e81853c41416fb 13,15
+tools/web_search.py
+  h_e81853c41416fb 15,17
+widgets/agent_monitor.py
+  h_e81853c41416fb 27,29
+widgets/animated_logo.py
+  h_e81853c41416fb 9,11
+widgets/callouts.py
+  h_e81853c41416fb 3,5
+widgets/command_menu.py
+  h_e81853c41416fb 16,18
+widgets/context_gauge.py
+  h_e81853c41416fb 3,5
+widgets/diff_panel.py
+  h_e81853c41416fb 10,12
+widgets/errors_panel.py
+  h_e81853c41416fb 5,7
+widgets/files_touched.py
+  h_e81853c41416fb 9,11
+widgets/git_panel.py
+  h_e81853c41416fb 12,14
+widgets/live_activity.py
+  h_e81853c41416fb 7,9
+widgets/logo.py
+  h_e81853c41416fb 3,5
+widgets/model_picker.py
+  h_e81853c41416fb 18,20
+widgets/plan_board.py
+  h_e81853c41416fb 5,7
+widgets/project_badge.py
+  h_e81853c41416fb 13,15
+widgets/statusline_kit.py
+  h_e81853c41416fb 12,14
+widgets/style_pack.py
+  h_e81853c41416fb 7,9
+widgets/token_sparkline.py
+  h_e81853c41416fb 3,5
+widgets/tool_timeline.py
+  h_e81853c41416fb 7,9
+widgets/transcript_minimap.py
+  h_e81853c41416fb 7,9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "c983ba2212b251a74c888fd53d71a46c95d93662",
+  "prompts": {},
+  "humans": {
+    "h_e81853c41416fb": {
+      "author": "RafaSG13 <rafasrrg13@gmail.com>"
+    }
+  }
+}

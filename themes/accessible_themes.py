@@ -1,7 +1,15 @@
-"""High-contrast dark and light themes, every text colour at least 4.5:1 (WCAG AA). Install it with ``/ext``."""
+"""High-contrast dark and light themes, every text colour at least 4.5:1 (WCAG AA). Install it with ``/ext``.
 
-__version__ = "1.1"
-__api__ = "2"
+Override a colour without editing this file, per theme:
+``/ext settings themes/accessible_themes overrides '{"high_contrast_dark": {"accent": "#ff8800"}}'``
+(``extensions.settings.themes/accessible_themes.overrides`` in settings.json: theme name -> colour name ->
+``#rrggbb``). The shipped palettes pass ``scripts/check_items.py``' contrast gate; overrides are yours to keep readable.
+"""
+
+import re
+
+__version__ = "1.2"
+__api__ = "2.3"
 __tags__ = ["theme"]
 
 THEMES = {
@@ -67,6 +75,38 @@ THEMES = {
 """The palettes by theme name; the test measures the contrast of every text colour against its backgrounds."""
 
 
+HEX = re.compile(r"#[0-9a-fA-F]{6}")
+
+
 def register(minimal):
-    for name, palette in THEMES.items():
+    settings = minimal.declare_settings(
+        {"overrides": {}},
+        {
+            "overrides": {
+                "description": "colours to change, per theme: an object of theme name (high_contrast_dark, "
+                'high_contrast_light) -> colour name -> #rrggbb, e.g. {"high_contrast_dark": {"accent": "#ff8800"}}'
+            }
+        },
+    )
+    bad = []
+    changes = {}
+    for name, colors in settings["overrides"].items():
+        if name not in THEMES:
+            bad.append(f"unknown theme {str(name)[:40]!r} (use {', '.join(THEMES)})")
+        elif not isinstance(colors, dict):
+            bad.append(f"{str(name)[:40]} must be an object of colour -> #rrggbb")
+        else:
+            changes[name] = colors
+    palettes = {name: dict(palette) for name, palette in THEMES.items()}
+    for name, colors in changes.items():
+        for key, value in colors.items():
+            if key == "dark" or key not in palettes[name]:
+                bad.append(f"{name}: unknown colour {str(key)[:40]!r}")
+            elif not (isinstance(value, str) and HEX.fullmatch(value)):
+                bad.append(f"{name}: {key} must be #rrggbb, got {str(value)[:40]!r}")
+            else:
+                palettes[name][key] = value.lower()
+    for name, palette in palettes.items():
         minimal.register_theme(name, **palette)
+    if bad:  # the themes are registered with the valid overrides; the load error names the rest
+        raise ValueError(f"extensions.settings.themes/accessible_themes.overrides: {'; '.join(bad)}")

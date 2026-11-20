@@ -1,24 +1,60 @@
-"""Terminal title: names the terminal window or tab "minimal: <project> [idle|working]" and restores it on exit."""
+"""Terminal title: names the terminal window or tab from a template (default "minimal: <project> [idle|working]") and restores it on exit."""
 
 from __future__ import annotations
 
+import string
 import sys
 from pathlib import Path
 
 from textual.widgets import Static
 
-__version__ = "1.1"
-__api__ = "2"
+__version__ = "1.2"
+__api__ = "2.3"
 __tags__ = ["ui"]
 
 NAME = "term_title"
 
-DEFAULTS = {"prefix": "minimal", "restore": ""}
-"""``prefix``: what the title starts with; ``restore``: the title to set on exit (empty: pop the one the terminal
-had before, which most terminals support but a few, such as Terminal.app, ignore)."""
+PLACEHOLDERS = ("prefix", "project", "state", "branch", "model", "provider", "mode", "cwd")
+"""The names a ``template`` may use: ``{project}`` is the working directory's folder, ``{branch}`` the git branch
+(empty outside a repository), ``{mode}`` the current mode (empty for none), ``{cwd}`` the full path."""
 
-MAX_LENGTH = 100
-"""Characters of the title; longer ones lose their end."""
+DEFAULTS = {
+    "enabled": True,
+    "template": "{prefix}: {project} [{state}]",
+    "prefix": "minimal",
+    "idle": "idle",
+    "working": "working",
+    "max_length": 100,
+    "restore": "",
+    "push_pop": True,
+}
+
+SCHEMA = {
+    "enabled": {"description": "Set the terminal title. False registers nothing and never touches the title."},
+    "template": {
+        "description": (
+            "The title, with placeholders " + ", ".join("{" + name + "}" for name in PLACEHOLDERS)
+            + ". Example: {prefix}: {project}@{branch} {model} [{state}]. Empty parts leave their text blank."
+        )
+    },
+    "prefix": {"description": "Text of the {prefix} placeholder."},
+    "idle": {"description": "Text of the {state} placeholder between turns."},
+    "working": {"description": "Text of the {state} placeholder while a turn runs."},
+    "max_length": {
+        "description": "Characters of the title; a longer one loses the end of {project}, then of the whole title.",
+        "min": 10,
+        "max": 500,
+    },
+    "restore": {
+        "description": (
+            "The title to set on exit. Empty: pop the one the terminal had before (needs push_pop; most "
+            "terminals support it, a few, such as Terminal.app, ignore it)."
+        )
+    },
+    "push_pop": {
+        "description": "Save the terminal's title when starting and bring it back on exit (xterm window operations)."
+    },
+}
 
 PUSH = "\x1b[22;0t"
 """Save the terminal's current title on its stack (xterm window ops, also iTerm2, kitty, WezTerm, tmux)."""
@@ -32,16 +68,33 @@ def clean(text: object) -> str:
     return " ".join("".join(ch if ch.isprintable() else " " for ch in str(text)).split())
 
 
-def build_title(prefix: str, cwd: str, state: str) -> str:
-    """``"<prefix>: <project folder> [<state>]"`` with every control character removed, cut to ``MAX_LENGTH``.
+def check_template(template: str) -> None:
+    """Raise ``ValueError`` if ``template`` is not a format string over ``PLACEHOLDERS``."""
+    try:
+        fields = [field for _, field, _, _ in string.Formatter().parse(template) if field is not None]
+    except ValueError as error:
+        raise ValueError(f"term_title: template is not valid: {error}") from None
+    for field in fields:
+        if field not in PLACEHOLDERS:
+            raise ValueError(f"term_title: template uses {{{field}}}; use only {', '.join(PLACEHOLDERS)}")
 
-    The ``[state]`` suffix always survives the cut; the project is the name of ``cwd``'s folder.
+
+def build_title(template: str, values: dict[str, str], max_length: int = 100) -> str:
+    """``template`` filled with ``values`` (each cleaned of control characters), cut to ``max_length``.
+
+    A title over the limit first shortens the project, so what follows it (the state) survives; if that is not
+    enough the end of the whole title is cut.
     """
-    project = Path(cwd).name or cwd
-    head = f"{clean(prefix)}: {clean(project)}"
-    suffix = f" [{clean(state)}]"
-    room = max(1, MAX_LENGTH - len(suffix))
-    return (head if len(head) <= room else head[: room - 1] + "…") + suffix
+    values = {name: clean(values.get(name, "")) for name in PLACEHOLDERS}
+    title = clean(template.format(**values))
+    excess = len(title) - max_length
+    project = values["project"]
+    if excess > 0 and len(project) > 1:
+        values["project"] = project[: max(1, len(project) - excess - 1)] + "…"
+        title = clean(template.format(**values))
+    if len(title) > max_length:
+        title = title[: max_length - 1] + "…"
+    return title
 
 
 def osc_title(title: str) -> str:
@@ -82,27 +135,49 @@ class Title:
         self.terminal = terminal
         self.pushed = False
         self.shown = ""
+        self.state = "idle"
 
-    def show(self, cwd: str, state: str) -> None:
-        title = build_title(self.settings["prefix"], cwd, state)
+    def values(self, ctx) -> dict[str, str]:
+        """What the template's placeholders stand for right now."""
+        settings = self.settings
+        git = ctx.git() if "{branch}" in settings["template"] else None
+        return {
+            "prefix": settings["prefix"],
+            "project": Path(ctx.cwd).name or ctx.cwd,
+            "state": settings[self.state],
+            "branch": (git.branch or "") if git else "",
+            "model": ctx.model or "",
+            "provider": ctx.provider_name or "",
+            "mode": ctx.mode or "",
+            "cwd": ctx.cwd,
+        }
+
+    def show(self, ctx, state: str | None = None) -> None:
+        """Send the title for ``state`` (``"idle"`` or ``"working"``; ``None``: the last one) if it changed."""
+        if state is not None:
+            self.state = state
+        title = build_title(self.settings["template"], self.values(ctx), self.settings["max_length"])
         if title == self.shown:
             return
-        if not self.pushed:
+        if self.settings["push_pop"] and not self.pushed:
             self.pushed = self.terminal.write(PUSH)
         if self.terminal.write(osc_title(title)):
             self.shown = title
 
     def restore(self) -> None:
-        if not self.pushed:
-            return
+        shown, pushed = self.shown, self.pushed
         self.pushed = False
         self.shown = ""
         restore = clean(self.settings["restore"])
-        self.terminal.write(osc_title(restore) if restore else POP)
+        if restore and (shown or pushed):
+            self.terminal.write(osc_title(restore))
+        elif pushed:
+            self.terminal.write(POP)
 
 
 class Anchor(Static):
-    """Invisible: gives the extension the running app and an ``idle`` signal after every turn, even a failed one."""
+    """Invisible: gives the extension the running app and refreshes the title when the UI redraws (a git branch
+    that changed, a reload, the end of a command)."""
 
     DEFAULT_CSS = "Anchor { display: none; }"
 
@@ -115,16 +190,20 @@ class Anchor(Static):
         self.terminal.app = self.app
 
     def refresh_state(self, ctx) -> None:
-        self.tracker.show(ctx.cwd, "idle")
+        self.tracker.show(ctx)
 
 
 def register(minimal):
-    settings = minimal.declare_settings(DEFAULTS)
+    settings = minimal.declare_settings(DEFAULTS, SCHEMA)
+    if not settings["enabled"]:
+        return
+    check_template(settings["template"])
     terminal = Terminal()
     title = Title(settings, terminal)
 
-    minimal.on("session_start", lambda event: title.show(event["ctx"].cwd, "idle"))
-    minimal.on("turn_start", lambda event: title.show(event["ctx"].cwd, "working"))
-    minimal.on("turn_end", lambda event: None if event["nested"] else title.show(event["ctx"].cwd, "idle"))
+    minimal.on("session_start", lambda event: title.show(event["ctx"], "idle"))
+    minimal.on("turn_start", lambda event: title.show(event["ctx"], "working"))
+    minimal.on("turn_end", lambda event: None if event["nested"] else title.show(event["ctx"], "idle"))
+    minimal.on("mode_change", lambda event: title.show(event["ctx"]))
     minimal.on_dispose(title.restore)
     minimal.register_widget(NAME, lambda ctx: Anchor(terminal, title), area="bottom")

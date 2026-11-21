@@ -51,30 +51,30 @@ The paths below are the marketplace folders.
 
 | Item | Path | What it does |
 | ---- | ---- | ------------ |
-| `claude_subscription` | `extensions/claude_subscription.py` | The `claude` provider: a Claude Pro/Max subscription through a browser login instead of an API key (`minimal --login claude`). Needs minimal 0.6; moves a login kept by an older minimal. |
-| `compact` | `extensions/compact.py` | Summarises the history into a new session when the context reaches a threshold, also in the middle of a long turn; adds `/compact`. |
-| `creator` | `extensions/creator.py` | Has the model create extensions, tools, widgets and themes: skeletons (`ext_new`, `ext_template`), the API source, validation, version bumps, removal, a catalogue row for publishing, and `/create <kind> <name> [description]`. |
-| `crystallize` | `extensions/crystallize.py` | Turns commands the model runs again and again into tools, and the calls you deny into `AGENTS.md` rules (`/crystallize`). |
+| `claude_subscription` | `extensions/claude_subscription.py` | The `claude` provider: a Claude Pro/Max subscription through a browser login instead of an API key (`minimal --login claude`). Thinking and pictures work as with `anthropic`, and it knows the `claude-` context windows; default model and windows are settings. Needs minimal 0.9; moves a login kept by an older minimal. |
+| `compact` | `extensions/compact.py` | Summarises the history into a new session when the context reaches a threshold (a token count or a fraction of the model's window), also in the middle of a long turn; adds `/compact`. Exchanges kept, summary prompt, model, reasoning effort and toasts are settings; `auto` false leaves only `/compact`. Needs minimal 0.9. |
+| `creator` | `extensions/creator.py` | Has the model create extensions, tools, widgets and themes: 2.3 skeletons (settings with schema, titles, keys), the API source and conventions, validation with a lint for API and tags, version bumps, removal, a catalogue row for publishing, and `/create <kind> <name> [description]`. Needs minimal 0.9. |
+| `crystallize` | `extensions/crystallize.py` | Turns commands the model runs again and again into tools, and the calls you deny into `AGENTS.md` rules (`/crystallize`); thresholds, rules file and wording are settings. Needs minimal 0.9. |
 | `help_overlay` | `extensions/help_overlay.py` | `/keys` (alias `/shortcuts`) lists the live key bindings and every slash command, with an optional filter. Needs minimal 0.9. |
 | `ledger` | `extensions/ledger.py` | A sidebar panel of the heaviest tool results in the context, flagging stale reads; `/prune` drops the ones you pick and continues in a new session. |
-| `lenses` | `extensions/lenses.py` | Shortens long `bash` output (passing Python test lines, repeated lines, head and tail) and keeps the full text in `.minimal/outputs/`. |
-| `loose_ends` | `extensions/loose_ends.py` | A `note` tool and backlog for what the model could not verify, noticed or left to do; `/ends` reviews it. |
+| `lenses` | `extensions/lenses.py` | Shortens long `bash` output (passing Python test lines, repeated lines, head and tail) and keeps the full text in `.minimal/outputs/`; limits, your own `rules`, saved folder and notes are settings, and `/lenses on\|off` or a key switch it. Needs minimal 0.9. |
+| `loose_ends` | `extensions/loose_ends.py` | A `note` tool and backlog for what the model could not verify, noticed or left to do; `/ends` reviews it; panel, limits and wording are settings. Needs minimal 0.9. |
 | `mermaid` | `extensions/mermaid.py` | Draws `mermaid` code blocks in replies as diagrams. Needs `termaid` (offered on install). |
 | `modes` | `extensions/modes.py` | Plan and build modes: investigate read-only and end with a numbered plan, approve it at the gate when you switch to build, and optionally start in a chosen mode (`/mode`, `Shift+Tab`). Needs minimal 0.7. |
-| `retry` | `extensions/retry.py` | Retries requests that fail with rate limits, overloads or network errors, with backoff, and can switch to a fallback provider. |
-| `scope_fence` | `extensions/scope_fence.py` | Blocks edits outside the paths you declare, or over a diff budget (`/fence`). |
+| `retry` | `extensions/retry.py` | Retries requests that fail with rate limits, overloads or network errors, with backoff, and can switch to a fallback provider; statuses, errors and texts that count, backoff factor, messages and a live countdown next to the working indicator are settings. Needs minimal 0.9. |
+| `scope_fence` | `extensions/scope_fence.py` | Blocks edits outside the paths you declare, or over a diff budget (`/fence`); messages, exemptions and the budget are settings, with an optional status-line segment and key. Needs minimal 0.9. |
 | `term_title` | `extensions/term_title.py` | Names your terminal window or tab `minimal: <project> [idle\|working]` and puts the old title back on exit. |
 | `theme_builder` | `extensions/theme_builder.py` | `/theme_builder <name> <#rrggbb> [dark\|light]` builds a full theme from one accent colour and keeps it across restarts; contrast and hue are settings, and `list`, `delete` and `export` manage the saved themes. |
-| `tripwire` | `extensions/tripwire.py` | Re-runs your invariant commands after file changes and tells the model which call broke them (`/tripwire`). |
+| `tripwire` | `extensions/tripwire.py` | Re-runs your invariant commands (from `/tripwire` or the `commands` setting) after file changes and tells the model which call broke them; shows progress and can notify when one starts failing. Needs minimal 0.9. |
+| `tui_tools` | `extensions/tui_tools.py` | Runs terminal UIs inside minimal: `/lazygit`, `/yazi`, `/btop`, `/lazydocker`, `/k9s`, `/gh-dash`, `/tig`, `/gitui` (those found on PATH) and your own tools; `/tui` lists them with install hints, says what a git tool changed and prints the files yazi picked as `@paths`. Needs minimal 0.9. |
 
 ### Tools
 
 | Item | Path | What it does |
 | ---- | ---- | ------------ |
-| `tools/ask_user` | `tools/ask_user.py` | Lets the model ask you a clarifying question (free text or pick one option) instead of guessing. |
-| `tools/delegate` | `tools/delegate.py` | Hands a self-contained task to a fresh agent and returns only its final message; tool allow-list, model, turn limit and role name; fails with its status instead of hanging. Supersedes `tools/subagent`. Needs minimal 0.7. |
-| `tools/subagent` | `tools/subagent.py` | Delegates a task to a fresh agent loop with its own history. |
-| `tools/web_search` | `tools/web_search.py` | Web search through the Brave Search API. Needs `BRAVE_API_KEY`. |
+| `tools/ask_user` | `tools/ask_user.py` | Lets the model ask you a clarifying question (free text or pick one option) instead of guessing; the option limit and the no-answer text are settings. |
+| `tools/delegate` | `tools/delegate.py` | Hands a self-contained task to a fresh agent and returns only its final message; tool allow-list, model, reasoning effort, turn limit and role name, progress while it runs, optionally read-only so several delegates overlap; fails with its status instead of hanging. Replaces `tools/subagent`. Needs minimal 0.9. |
+| `tools/web_search` | `tools/web_search.py` | Web search through the Brave Search API; parallel (read-only) calls, result count, timeout, clipping, locale and safe search are settings. Needs `BRAVE_API_KEY`. Needs minimal 0.9. |
 
 ### Themes
 
@@ -84,15 +84,26 @@ Install them from `/ext` → Themes and switch with `/theme`.
 | ---- | ---- | ------------ |
 | `themes/accessible_themes` | `themes/accessible_themes.py` | High-contrast dark and light themes, every text colour at least 4.5:1 (WCAG AA); per-colour `overrides`. |
 | `themes/amber` | `themes/amber.py` | Dark palette with a yellow accent. |
+| `themes/ayu_mirage` | `themes/ayu_mirage.py` | Ayu Mirage: the soft slate-blue Ayu dark theme with an orange accent. |
 | `themes/catppuccin` | `themes/catppuccin.py` | Mocha: a soft pastel dark theme with a mauve accent. |
 | `themes/catppuccin_latte` | `themes/catppuccin_latte.py` | The light Catppuccin flavour, warm and creamy with a mauve accent. |
 | `themes/cyberpunk` | `themes/cyberpunk.py` | Near-black violet with neon pink and cyan. |
 | `themes/dark` | `themes/dark.py` | A neutral dark editor palette with a blue accent. |
 | `themes/dracula` | `themes/dracula.py` | The classic purple-and-pink dark theme. |
+| `themes/everforest` | `themes/everforest.py` | Everforest: comfortable green-tinted dark theme with warm, low-glare colours. |
 | `themes/forest` | `themes/forest.py` | Calm dark green with moss and sage tones. |
+| `themes/github_dark` | `themes/github_dark.py` | GitHub Dark: the github.com dark palette with a blue accent. |
+| `themes/github_light` | `themes/github_light.py` | GitHub Light: the github.com light palette with a blue accent. |
 | `themes/gruvbox` | `themes/gruvbox.py` | Retro dark theme with warm, earthy colours and a yellow accent. |
+| `themes/kanagawa` | `themes/kanagawa.py` | Kanagawa: dark theme inspired by Hokusai's Great Wave, with ink and wave tones. |
 | `themes/light` | `themes/light.py` | A light editor palette with a blue accent. |
+| `themes/monokai` | `themes/monokai.py` | Monokai: the vivid Sublime Text dark theme with a green accent. |
 | `themes/nord` | `themes/nord.py` | Arctic, north-bluish dark theme. |
+| `themes/one_dark` | `themes/one_dark.py` | One Dark: Atom's classic dark theme with a cyan accent. |
+| `themes/rose_pine` | `themes/rose_pine.py` | Rosé Pine: soft dark theme with muted pastels and a rose accent. |
+| `themes/rose_pine_dawn` | `themes/rose_pine_dawn.py` | Rosé Pine Dawn: the light Rosé Pine, warm parchment with a pine accent. |
+| `themes/solarized_dark` | `themes/solarized_dark.py` | Solarized Dark: Ethan Schoonover's precision dark theme with a blue accent. |
+| `themes/solarized_light` | `themes/solarized_light.py` | Solarized Light: Ethan Schoonover's precision light theme with a blue accent. |
 | `themes/tokyo_night` | `themes/tokyo_night.py` | Deep blue-violet dark theme inspired by Tokyo city lights. |
 
 ### Widgets

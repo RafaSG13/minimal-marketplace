@@ -1,11 +1,14 @@
 """Crystallize: turn repeated commands into tools and denials into AGENTS.md rules.
 
 /crystallize scans past sessions for commands the model ran again and again
-and for calls you denied, and lets you keep them as a tool or a rule.
+and for calls you denied, and lets you keep them as a tool or a rule. Settings
+(`/ext settings crystallize`) set how many runs make a habit, which commands are
+ignored, how many suggestions are listed, the rule wording, the rules file and
+heading, and the valid tool names.
 """
 
-__version__ = "1.5"
-__api__ = "2"
+__version__ = "1.6"
+__api__ = "2.3"
 __tags__ = ["workflow"]
 
 import json
@@ -20,6 +23,78 @@ USAGE = "usage: /crystallize [all]"
 DENIED = "Error: " + USER_DENIED
 SKIP_FIRST = {"ls", "cd", "pwd", "cat", "echo", "head", "tail", "grep", "rg", "find", "sed", "wc"}
 RULES_HEADING = "## Learned rules"
+RULES_FILE = "AGENTS.md"
+NAME_PATTERN = "[a-z][a-z0-9_]*"
+BASH_RULE = "Do not run `{detail}` without asking first."
+FILE_RULE = "Do not modify {detail} without asking first."
+OTHER_RULE = "Do not call {name} without asking first."
+DIALOG_TITLE = "Crystallize · tick what to keep"
+RULE_FIELDS = ("bash_rule", "file_rule", "other_rule")
+
+DEFAULTS = {
+    "enabled": True,
+    "min_runs": 3,
+    "max_command_chars": 200,
+    "skip_commands": sorted(SKIP_FIRST),
+    "max_habits": 10,
+    "max_rules": 10,
+    "hint_chars": 60,
+    "label_chars": 70,
+    "tool_name_pattern": NAME_PATTERN,
+    "rules_file": RULES_FILE,
+    "rules_heading": RULES_HEADING,
+    "bash_rule": BASH_RULE,
+    "file_rule": FILE_RULE,
+    "other_rule": OTHER_RULE,
+    "dialog_title": DIALOG_TITLE,
+}
+
+SCHEMA = {
+    "enabled": {"description": "Register /crystallize and index sessions; false registers nothing."},
+    "min_runs": {"description": "Times the model must have run the same bash command to suggest a tool.", "min": 2, "max": 1000},
+    "max_command_chars": {"description": "Longest command suggested as a tool.", "min": 10, "max": 5000},
+    "skip_commands": {
+        "description": "First words of commands never suggested as tools (inspection commands, by default)."
+    },
+    "max_habits": {"description": "Most tool suggestions listed.", "min": 0, "max": 100},
+    "max_rules": {"description": "Most rule suggestions listed.", "min": 0, "max": 100},
+    "hint_chars": {"description": "Characters of your reply to a denial shown next to its rule (0: none).", "min": 0, "max": 500},
+    "label_chars": {"description": "Characters of a command shown in the list of suggestions.", "min": 10, "max": 500},
+    "tool_name_pattern": {"description": "Regular expression a tool name you type must fully match."},
+    "rules_file": {"description": "File, relative to the project, that receives the rules you keep."},
+    "rules_heading": {"description": "Heading line under which the kept rules are listed in that file."},
+    "bash_rule": {"description": "Rule for a denied bash command; {detail} is the command."},
+    "file_rule": {"description": "Rule for a denied write or edit; {detail} is the path."},
+    "other_rule": {"description": "Rule for any other denied tool; {name} is the tool, {detail} its input."},
+    "dialog_title": {"description": "Title of the list of suggestions."},
+}
+
+
+def check_settings(settings):
+    """``ValueError`` saying what to fix if ``settings`` are inconsistent beyond what the schema checks."""
+    where = "crystallize: extensions.settings.crystallize."
+    if not all(isinstance(c, str) and c for c in settings["skip_commands"]):
+        raise ValueError(f"{where}skip_commands must be a list of non-empty command names")
+    try:
+        re.compile(settings["tool_name_pattern"])
+    except re.error as exc:
+        raise ValueError(f"{where}tool_name_pattern is not a valid regular expression ({exc}); fix or reset it") from exc
+    for name in RULE_FIELDS:
+        try:
+            text = settings[name].format(name="n", detail="d")
+        except (KeyError, IndexError, ValueError, AttributeError) as exc:
+            raise ValueError(
+                f"{where}{name} is not a valid template ({exc!r}); use only {{name}} and {{detail}}, "
+                "and write literal braces as {{ and }}"
+            ) from exc
+        if not text.strip() or "\n" in text:
+            raise ValueError(f"{where}{name} must be one non-empty line")
+    heading = settings["rules_heading"]
+    if not heading.strip() or "\n" in heading:
+        raise ValueError(f"{where}rules_heading must be one non-empty line")
+    rules_file = Path(settings["rules_file"])
+    if not settings["rules_file"] or rules_file.is_absolute() or ".." in rules_file.parts:
+        raise ValueError(f"{where}rules_file must be a path inside the project, such as AGENTS.md")
 
 TOOL_TEMPLATE = '''"""__NAME__: runs `__DOC__` (crystallized from __RUNS__ runs)."""
 
@@ -75,15 +150,17 @@ def _messages(ctx, session_id):
     return [m for m in messages if isinstance(m, dict)]
 
 
-def _rule_text(name, detail):
+def _rule_text(name, detail, settings):
     if name == "bash":
-        return f"Do not run `{detail}` without asking first."
-    if name in ("write", "edit"):
-        return f"Do not modify {detail} without asking first."
-    return f"Do not call {name} without asking first."
+        template = settings["bash_rule"]
+    elif name in ("write", "edit"):
+        template = settings["file_rule"]
+    else:
+        template = settings["other_rule"]
+    return template.format(name=name, detail=detail)
 
 
-def _scan(ctx, session_ids, known_tools, known_rules):
+def _scan(ctx, session_ids, known_tools, known_rules, settings):
     runs, where = Counter(), {}
     denied, hints, texts = Counter(), {}, {}
     for sid in session_ids:
@@ -115,27 +192,34 @@ def _scan(ctx, session_ids, known_tools, known_rules):
                     if key in known_rules:
                         continue
                     denied[key] += 1
-                    texts[key] = _rule_text(name, detail)
+                    texts[key] = _rule_text(name, detail, settings)
                     if not hints.get(key):
                         nxt = next(
                             (m["content"] for m in messages[mi + 1 :] if m.get("role") == "user" and isinstance(m.get("content"), str)),
                             "",
                         )
-                        hints[key] = nxt[:60]
+                        hints[key] = nxt[: settings["hint_chars"]]
     habits = []
+    skip = set(settings["skip_commands"])
     for command, count in runs.most_common():
         words = command.split()
-        if count < 3 or len(command) > 200 or not words or words[0] in SKIP_FIRST or command in known_tools:
+        if (
+            count < settings["min_runs"]
+            or len(command) > settings["max_command_chars"]
+            or not words
+            or words[0] in skip
+            or command in known_tools
+        ):
             continue
         habits.append({"command": command, "runs": count, "sessions": len(where[command])})
     rules = [
         {"key": key, "text": texts[key], "count": count, "hint": hints.get(key, "")}
         for key, count in denied.most_common()
     ]
-    return habits[:10], rules[:10]
+    return habits[: settings["max_habits"]], rules[: settings["max_rules"]]
 
 
-def _crystallize(args, ctx):
+def _crystallize(args, ctx, settings):
     arg = args.strip()
     if arg not in ("", "all"):
         raise ValueError(USAGE)
@@ -146,12 +230,12 @@ def _crystallize(args, ctx):
         if arg != "all":
             print("No sessions indexed for this project yet; scanning all sessions.")
         ids = sorted(ctx.sessions())
-    habits, rules = _scan(ctx, ids, set(state["tools"].values()), set(state["rules"]))
+    habits, rules = _scan(ctx, ids, set(state["tools"].values()), set(state["rules"]), settings)
     if not habits and not rules:
         print("Nothing to crystallize yet.")
         return
     options = [
-        (f"tool:{i}", f"tool  {h['runs']}x in {h['sessions']} session(s)  {h['command'][:70]}", False)
+        (f"tool:{i}", f"tool  {h['runs']}x in {h['sessions']} session(s)  {h['command'][: settings['label_chars']]}", False)
         for i, h in enumerate(habits)
     ] + [
         (
@@ -161,7 +245,7 @@ def _crystallize(args, ctx):
         )
         for i, r in enumerate(rules)
     ]
-    ticked = ctx.ui.choose_many("Crystallize · tick what to keep", options)
+    ticked = ctx.ui.choose_many(settings["dialog_title"], options)
     if ticked is None:
         print("Cancelled.")
         return
@@ -181,8 +265,8 @@ def _crystallize(args, ctx):
         target = root / ".minimal" / "extensions" / "tools" / f"{name}.py"
         if name is None:
             print("Skipped: no name given")
-        elif not re.fullmatch(r"[a-z][a-z0-9_]*", name):
-            print(f"Skipped: {name!r} is not a valid tool name (use [a-z][a-z0-9_]*)")
+        elif not re.fullmatch(settings["tool_name_pattern"], name):
+            print(f"Skipped: {name!r} is not a valid tool name (use {settings['tool_name_pattern']})")
         elif name in ctx.tools:
             print(f"Skipped: a tool named {name} already exists")
         elif target.exists():
@@ -198,19 +282,21 @@ def _crystallize(args, ctx):
 
     chosen = [rules[int(v.partition(":")[2])] for v in ticked if v.startswith("rule:")]
     if chosen:
-        agents = root / "AGENTS.md"
+        agents = root / settings["rules_file"]
         try:
             text = agents.read_text(encoding="utf-8")
         except OSError:
             text = ""
-        if RULES_HEADING not in text.splitlines():
-            text += f"\n{RULES_HEADING}\n"
+        heading = settings["rules_heading"]
+        if heading not in text.splitlines():
+            text += f"\n{heading}\n"
         elif not text.endswith("\n"):
             text += "\n"
         text += "".join(f"- {r['text']}\n" for r in chosen)
+        agents.parent.mkdir(parents=True, exist_ok=True)
         agents.write_text(text, encoding="utf-8")
         state["rules"].extend(r["key"] for r in chosen)
-        print(f"Added {len(chosen)} rule(s) to AGENTS.md")
+        print(f"Added {len(chosen)} rule(s) to {settings['rules_file']}")
 
     _save(STATE_FILE, state)
     if wrote:
@@ -219,6 +305,10 @@ def _crystallize(args, ctx):
 
 def register(minimal):
     global STATE_FILE
+    settings = minimal.declare_settings(DEFAULTS, SCHEMA)
+    if not settings["enabled"]:
+        return
+    check_settings(settings)
     STATE_FILE = minimal.data_dir() / "state.json"
 
     def on_turn_end(event):
@@ -234,6 +324,6 @@ def register(minimal):
     minimal.on("turn_end", on_turn_end)
     minimal.register_command(
         "crystallize",
-        _crystallize,
+        lambda args, ctx: _crystallize(args, ctx, settings),
         description="turn repeated commands into tools and denials into AGENTS.md rules",
     )

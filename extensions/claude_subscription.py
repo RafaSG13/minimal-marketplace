@@ -9,11 +9,15 @@ earlier in `~/.minimal/claude-auth.json` is moved there the first time it is nee
 It signs in with the client id of Claude Code and presents itself as Claude Code to the API, which the
 subscription tokens require; whether that fits Anthropic's terms for your plan is yours to check.
 
+Thinking (`reasoning_effort`), pictures and signed thinking blocks work as with the `anthropic` provider, which this one
+extends. The context window of the `claude-` models is known to `ctx.context_window` (the context gauge, compaction by
+window fill); `/ext settings claude_subscription` sets the default model and the windows.
+
 Install it with `/ext`, or `minimal ext install claude_subscription` before the first start.
 """
 
-__version__ = "1.1"
-__api__ = "2.1"
+__version__ = "1.2"
+__api__ = "2.3"
 __tags__ = ["provider"]
 
 import base64
@@ -305,17 +309,49 @@ def _account() -> str | None:
     return None if stored is None else stored.email or "logged in"
 
 
+DEFAULT_MODEL = "claude-sonnet-5-5"
+CONTEXT_WINDOWS = {"claude-": 200_000}
+"""Context size in tokens by model-name prefix: ``ctx.context_window`` (the context gauge, compaction by window fill) has
+no table for the provider ``claude``, which is not the built-in ``anthropic``."""
+
+DEFAULTS = {"default_model": DEFAULT_MODEL, "context_windows": CONTEXT_WINDOWS}
+
+SCHEMA = {
+    "default_model": {"description": "Model the provider `claude` starts with (/model picks another for the session)."},
+    "context_windows": {
+        "description": "Context size in tokens by model-name prefix, e.g. {\"claude-\": 200000, \"claude-opus\": 1000000}; "
+        "the longest matching prefix wins. The context_window setting beats it."
+    },
+}
+
+
+def check_settings(settings) -> list[str]:
+    """The problems of ``settings`` that the schema cannot express, each with its fix."""
+    problems = []
+    if not settings["default_model"].strip():
+        problems.append("default_model must not be empty; remove it to use " + DEFAULT_MODEL)
+    for prefix, tokens in settings["context_windows"].items():
+        if not isinstance(prefix, str) or isinstance(tokens, bool) or not isinstance(tokens, int) or tokens < 1:
+            problems.append(f"context_windows[{prefix!r}] must be a positive whole number of tokens")
+    return problems
+
+
 def register(minimal):
     global _data_dir
+    settings = minimal.declare_settings(DEFAULTS, SCHEMA)
+    problems = check_settings(settings)
+    if problems:
+        raise ValueError(f"claude_subscription settings: {'; '.join(problems)}")
     _data_dir = minimal.data_dir
     minimal.add_provider(
         ProviderSpec(
             name="claude",
             create=ClaudeProvider,
-            default_model="claude-sonnet-5-5",
+            default_model=settings["default_model"].strip(),
             description="Claude Pro/Max subscription (minimal --login claude)",
             login=_login,
             logout=logout,
             account=_account,
+            context_windows=dict(settings["context_windows"]),
         )
     )

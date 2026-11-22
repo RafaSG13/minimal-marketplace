@@ -6,8 +6,8 @@ scope_fence`) set a default budget, the guarded tools, exempt prefixes, the
 messages the model sees, the panel and an optional status segment and key.
 """
 
-__version__ = "1.7"
-__api__ = "2.3"
+__version__ = "1.8"
+__api__ = "2.4"
 __tags__ = ["safety"]
 
 import json
@@ -80,26 +80,32 @@ SCHEMA = {
 
 
 def check_settings(settings):
-    """``ValueError`` saying what to fix if ``settings`` are inconsistent beyond what the schema checks."""
+    """``(settings, problems)``: ``settings`` as a dict where each key that is inconsistent beyond what the schema checks is
+    back to its default, and one text per fix. A guard must keep guarding, so a typo never stops it from loading."""
+    fixed, problems = dict(settings), []
+    where = "extensions.settings.scope_fence."
     for name, sample in MESSAGE_FIELDS.items():
         try:
-            settings[name].format(**sample)
+            fixed[name].format(**sample)
         except (KeyError, IndexError, ValueError, AttributeError) as exc:
             known = ", ".join("{" + k + "}" for k in sample)
-            raise ValueError(
-                f"scope_fence: extensions.settings.scope_fence.{name} is not a valid template ({exc!r}); "
-                f"use only {known}, and write literal braces as {{{{ and }}}}"
-            ) from exc
+            problems.append(
+                f"{where}{name} is not a valid template ({exc!r}); use only {known}, and write literal braces as "
+                "{{ and }}; the default message is used until you fix it"
+            )
+            fixed[name] = DEFAULTS[name]
     for name in ("tools", "exempt"):
-        value = settings[name]
-        if not all(isinstance(v, str) and v for v in value):
-            raise ValueError(f"scope_fence: extensions.settings.scope_fence.{name} must be a list of non-empty strings")
-    bad = [t for t in settings["tools"] if t not in GUARDABLE]
+        if not all(isinstance(v, str) and v for v in fixed[name]):
+            problems.append(f"{where}{name} must be a list of non-empty strings; the default is used until you fix it")
+            fixed[name] = list(DEFAULTS[name])
+    bad = [t for t in fixed["tools"] if t not in GUARDABLE]
     if bad:
-        raise ValueError(
-            f"scope_fence: extensions.settings.scope_fence.tools has {', '.join(map(repr, bad))}; "
-            f"the fence guards only {', '.join(GUARDABLE)}"
+        problems.append(
+            f"{where}tools has {', '.join(map(repr, bad))}; the fence guards only {', '.join(GUARDABLE)}; "
+            "the default is used until you fix it"
         )
+        fixed["tools"] = list(DEFAULTS["tools"])
+    return fixed, problems
 
 
 def _git(cwd, *args):
@@ -209,7 +215,9 @@ def register(minimal):
     settings = minimal.declare_settings(DEFAULTS, SCHEMA)
     if not settings["enabled"]:
         return
-    check_settings(settings)
+    settings, problems = check_settings(settings)
+    for problem in problems:
+        minimal.report_problem(problem)
     guarded = tuple(settings["tools"])
     exempt = tuple(settings["exempt"])
     STATE_FILE = minimal.data_dir() / "state.json"
@@ -335,4 +343,4 @@ def register(minimal):
         try:
             minimal.register_keybinding(settings["key"], show_fence, "show the active scope fence", name="show")
         except ValueError as exc:
-            raise ValueError(f"scope_fence: extensions.settings.scope_fence.key: {exc}; set it to \"\" for no key") from exc
+            minimal.report_problem(f"extensions.settings.scope_fence.key: {exc}; set it to \"\" for no key (the fence works without it)")

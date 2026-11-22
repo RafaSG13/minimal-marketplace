@@ -7,8 +7,8 @@ ignored, how many suggestions are listed, the rule wording, the rules file and
 heading, and the valid tool names.
 """
 
-__version__ = "1.6"
-__api__ = "2.3"
+__version__ = "1.7"
+__api__ = "2.4"
 __tags__ = ["workflow"]
 
 import json
@@ -71,30 +71,40 @@ SCHEMA = {
 
 
 def check_settings(settings):
-    """``ValueError`` saying what to fix if ``settings`` are inconsistent beyond what the schema checks."""
-    where = "crystallize: extensions.settings.crystallize."
-    if not all(isinstance(c, str) and c for c in settings["skip_commands"]):
-        raise ValueError(f"{where}skip_commands must be a list of non-empty command names")
+    """``(settings, problems)``: ``settings`` as a dict where each key that is inconsistent beyond what the schema checks is
+    back to its default, and one text per fix."""
+    fixed, problems = dict(settings), []
+    where = "extensions.settings.crystallize."
+
+    def reset(name, why):
+        problems.append(f"{where}{name} {why}; the default is used until you fix it")
+        fixed[name] = DEFAULTS[name]
+
+    if not all(isinstance(c, str) and c for c in fixed["skip_commands"]):
+        reset("skip_commands", "must be a list of non-empty command names")
     try:
-        re.compile(settings["tool_name_pattern"])
+        re.compile(fixed["tool_name_pattern"])
     except re.error as exc:
-        raise ValueError(f"{where}tool_name_pattern is not a valid regular expression ({exc}); fix or reset it") from exc
+        reset("tool_name_pattern", f"is not a valid regular expression ({exc})")
     for name in RULE_FIELDS:
         try:
-            text = settings[name].format(name="n", detail="d")
+            text = fixed[name].format(name="n", detail="d")
         except (KeyError, IndexError, ValueError, AttributeError) as exc:
-            raise ValueError(
-                f"{where}{name} is not a valid template ({exc!r}); use only {{name}} and {{detail}}, "
-                "and write literal braces as {{ and }}"
-            ) from exc
+            reset(
+                name,
+                f"is not a valid template ({exc!r}); use only {{name}} and {{detail}}, and write literal braces as {{{{ and }}}}",
+            )
+            continue
         if not text.strip() or "\n" in text:
-            raise ValueError(f"{where}{name} must be one non-empty line")
-    heading = settings["rules_heading"]
+            reset(name, "must be one non-empty line")
+    heading = fixed["rules_heading"]
     if not heading.strip() or "\n" in heading:
-        raise ValueError(f"{where}rules_heading must be one non-empty line")
-    rules_file = Path(settings["rules_file"])
-    if not settings["rules_file"] or rules_file.is_absolute() or ".." in rules_file.parts:
-        raise ValueError(f"{where}rules_file must be a path inside the project, such as AGENTS.md")
+        reset("rules_heading", "must be one non-empty line")
+    rules_file = Path(fixed["rules_file"])
+    if not fixed["rules_file"] or rules_file.is_absolute() or ".." in rules_file.parts:
+        reset("rules_file", "must be a path inside the project, such as AGENTS.md")
+    return fixed, problems
+
 
 TOOL_TEMPLATE = '''"""__NAME__: runs `__DOC__` (crystallized from __RUNS__ runs)."""
 
@@ -308,7 +318,9 @@ def register(minimal):
     settings = minimal.declare_settings(DEFAULTS, SCHEMA)
     if not settings["enabled"]:
         return
-    check_settings(settings)
+    settings, problems = check_settings(settings)
+    for problem in problems:
+        minimal.report_problem(problem)
     STATE_FILE = minimal.data_dir() / "state.json"
 
     def on_turn_end(event):

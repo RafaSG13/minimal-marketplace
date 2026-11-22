@@ -12,8 +12,8 @@ set the timeout, how much output is kept, a debounce, the notes the model sees,
 progress and failure notices, and the panel.
 """
 
-__version__ = "2.6"
-__api__ = "2.3"
+__version__ = "2.7"
+__api__ = "2.4"
 __tags__ = ["safety", "diagnostics"]
 
 import hashlib
@@ -93,21 +93,29 @@ STATE_FILE = None
 
 
 def check_settings(settings):
-    """``ValueError`` saying what to fix if ``settings`` are inconsistent beyond what the schema checks."""
-    commands = settings["commands"]
+    """``(settings, problems)``: ``settings`` as a dict where what is inconsistent beyond what the schema checks is
+    replaced (a bad template or glyph by its default; of ``commands`` only the bad entries are dropped, so one typo
+    keeps the other invariants), and one text per fix. A tripwire that does not load guards nothing."""
+    fixed, problems = dict(settings), []
+    where = "extensions.settings.tripwire."
+    commands = fixed["commands"]
     if not all(isinstance(c, str) and c.strip() for c in commands):
-        raise ValueError("tripwire: extensions.settings.tripwire.commands must be a list of non-empty command strings")
+        problems.append(f"{where}commands must be a list of non-empty command strings; the other entries are used")
+        fixed["commands"] = [c for c in commands if isinstance(c, str) and c.strip()]
     for name in NOTE_FIELDS:
         try:
-            settings[name].format(cmd="c", tail="t")
+            fixed[name].format(cmd="c", tail="t")
         except (KeyError, IndexError, ValueError, AttributeError) as exc:
-            raise ValueError(
-                f"tripwire: extensions.settings.tripwire.{name} is not a valid template ({exc!r}); "
-                "use only {cmd} and {tail}, and write literal braces as {{ and }}"
-            ) from exc
+            problems.append(
+                f"{where}{name} is not a valid template ({exc!r}); use only {{cmd}} and {{tail}}, and write literal "
+                "braces as {{ and }}; the default note is used until you fix it"
+            )
+            fixed[name] = DEFAULTS[name]
     for name in ("ok_glyph", "fail_glyph"):
-        if not settings[name].isprintable():
-            raise ValueError(f"tripwire: extensions.settings.tripwire.{name} must be printable text")
+        if not fixed[name].isprintable():
+            problems.append(f"{where}{name} must be printable text; the default is used until you fix it")
+            fixed[name] = DEFAULTS[name]
+    return fixed, problems
 
 
 def _git(cwd, *args):
@@ -212,7 +220,9 @@ def register(minimal):
     settings = minimal.declare_settings(DEFAULTS, SCHEMA)
     if not settings["enabled"]:
         return
-    check_settings(settings)
+    settings, problems = check_settings(settings)
+    for problem in problems:
+        minimal.report_problem(problem)
     STATE_FILE = minimal.data_dir() / "state.json"
     legacy = Path.home() / ".minimal" / "state" / "tripwire" / (
         hashlib.sha256(str(Path.cwd().resolve()).encode()).hexdigest()[:16] + ".json"

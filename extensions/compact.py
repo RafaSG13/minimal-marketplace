@@ -24,8 +24,8 @@ import sys
 
 from minimal.api import REASONING_EFFORTS, TurnInterrupted
 
-__version__ = "2.4"
-__api__ = "2.3"
+__version__ = "2.5"
+__api__ = "2.4"
 __tags__ = ["context", "workflow"]
 
 COMPACT_AT = 100_000
@@ -82,11 +82,13 @@ SCHEMA = {
 
 
 def check_settings(settings):
-    """The problems of ``settings`` that the schema cannot express, each with its fix."""
-    problems = []
-    if not settings["summary_prompt"].strip():
-        problems.append("summary_prompt must not be empty; remove it to use the default")
-    return problems
+    """``(settings, problems)``: ``settings`` as a dict where what the schema cannot express is back to its default, and one
+    text per fix."""
+    fixed, problems = dict(settings), []
+    if not fixed["summary_prompt"].strip():
+        problems.append("extensions.settings.compact.summary_prompt must not be empty; the default prompt is used until you fix it")
+        fixed["summary_prompt"] = DEFAULTS["summary_prompt"]
+    return fixed, problems
 
 
 def _text(blocks):
@@ -215,9 +217,9 @@ def compact(ctx, settings=DEFAULTS):
 
 def register(minimal):
     settings = minimal.declare_settings(DEFAULTS, SCHEMA)
-    problems = check_settings(settings)
-    if problems:
-        raise ValueError(f"compact settings: {'; '.join(problems)}")
+    settings, problems = check_settings(settings)
+    for problem in problems:
+        minimal.report_problem(problem)
     # A summary made in the middle of a turn: the requests that remain send it instead of
     # messages[:upto]. ``anchor`` is messages[upto - 1] of the live history, so a history that was
     # replaced or rolled back is not mistaken for this one.

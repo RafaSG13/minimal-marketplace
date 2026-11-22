@@ -17,8 +17,8 @@ Install it with ``/ext``.
 
 import time
 
-__version__ = "1.3"
-__api__ = "2.3"
+__version__ = "1.4"
+__api__ = "2.4"
 __tags__ = ["provider"]
 
 RETRYABLE_STATUS = {408, 409, 425, 429, 500, 502, 503, 504, 529}
@@ -85,29 +85,36 @@ PROGRESS_STEP = 1.0
 
 
 def check_settings(settings):
-    """The problems of ``settings`` that the schema cannot express, each with its fix."""
-    problems = []
+    """``(settings, problems)``: ``settings`` as a dict where each key the schema cannot check is back to its default when
+    it is inconsistent, and one text per fix."""
+    fixed, problems = dict(settings), []
+
+    def reset(key, why):
+        problems.append(f"{key} {why}; the default is used until you fix it")
+        fixed[key] = DEFAULTS[key]
+
     for key in ("statuses", "network_errors", "match"):
-        if not all(isinstance(v, (int if key == "statuses" else str)) and not isinstance(v, bool) for v in settings[key]):
-            problems.append(f"{key} must be a list of {'whole numbers' if key == 'statuses' else 'strings'}")
-    for code in settings["statuses"]:
+        if not all(isinstance(v, (int if key == "statuses" else str)) and not isinstance(v, bool) for v in fixed[key]):
+            reset(key, f"must be a list of {'whole numbers' if key == 'statuses' else 'strings'}")
+    for code in fixed["statuses"]:
         if isinstance(code, int) and not 100 <= code <= 599:
-            problems.append(f"statuses: {code} is not an HTTP status (100-599)")
-    fallback = settings["fallback"]
+            reset("statuses", f"has {code}, which is not an HTTP status (100-599)")
+            break
+    fallback = fixed["fallback"]
     if fallback:
         name, _, model = fallback.partition("/")
         if not name.strip() or name != name.strip() or (fallback.count("/") and not model.strip()):
-            problems.append(f"fallback {fallback!r} must be \"provider\" or \"provider/model\"")
+            reset("fallback", f"{fallback!r} must be \"provider\" or \"provider/model\"")
     for key, fields in (
         ("retry_message", {"error": "", "attempt": 0, "max_attempts": 0, "delay": 0.0}),
         ("fallback_message", {"fallback": ""}),
     ):
         try:
-            settings[key].format(**fields)
+            fixed[key].format(**fields)
         except (KeyError, IndexError, ValueError) as e:
             names = ", ".join("{" + f + "}" for f in fields)
-            problems.append(f"{key} is not a valid template ({type(e).__name__}: {e}); it may use {names}")
-    return problems
+            reset(key, f"is not a valid template ({type(e).__name__}: {e}); it may use {names}")
+    return fixed, problems
 
 
 def _get(settings, key):
@@ -187,9 +194,9 @@ def _count_down(ctx, seconds, label):
 
 def register(minimal):
     settings = minimal.declare_settings(DEFAULTS, SCHEMA)
-    problems = check_settings(settings)
-    if problems:
-        raise ValueError(f"retry settings: {'; '.join(problems)}")
+    settings, problems = check_settings(settings)
+    for problem in problems:
+        minimal.report_problem(f"extensions.settings.retry.{problem}")
 
     @minimal.on("provider_error")
     def retry(event):

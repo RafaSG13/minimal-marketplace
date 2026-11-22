@@ -17,8 +17,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-__version__ = "1.3"
-__api__ = "2.3"
+__version__ = "1.4"
+__api__ = "2.4"
 __tags__ = ["workflow"]
 
 ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
@@ -117,10 +117,11 @@ def _clip(text, limit):
 def register(minimal):
     settings = minimal.declare_settings(DEFAULTS, SCHEMA)
     if settings["count"] > settings["max_count"]:
-        raise ValueError(
-            f"web_search: setting count ({settings['count']}) is above max_count ({settings['max_count']}); "
-            "lower count or raise max_count"
+        minimal.report_problem(
+            f"setting count ({settings['count']}) is above max_count ({settings['max_count']}); "
+            f"using {settings['max_count']}: lower count or raise max_count"
         )
+        settings = {**settings, "count": settings["max_count"]}
     minimal.register_tool(
         name="web_search",
         run=lambda input, ctx: web_search(input, ctx, settings),

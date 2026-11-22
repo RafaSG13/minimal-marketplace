@@ -1,7 +1,7 @@
 """Run terminal UIs (lazygit, yazi, btop, ...) from minimal with /<tool> or /tui, and tell you what they changed."""
 
-__version__ = "1.0"
-__api__ = "2.3"
+__version__ = "1.1"
+__api__ = "2.4"
 __tags__ = ["workflow", "ui"]
 
 import os
@@ -15,14 +15,9 @@ from pathlib import Path
 NAME_RE = re.compile(r"[a-z0-9][a-z0-9_-]*")
 """A tool name is typed as ``/<name>``: lowercase letters, digits, ``_`` and ``-``."""
 
-RESERVED = frozenset(
-    {
-        "copy", "exit", "export", "ext", "extensions", "fork", "help", "login", "logout", "mode", "model", "new",
-        "provider", "quit", "reload", "resume", "rewind", "sessions", "settings", "setup", "theme", "title", "tools",
-        "trust", "tui", "ui", "usage",
-    }
-)  # fmt: skip
-"""minimal's own slash commands (and ``/tui``): a tool of one of these names would replace it."""
+ALWAYS_RESERVED = frozenset({"theme", "tui"})
+"""Names a tool may never take besides ``minimal.builtin_commands()``: ``/tui`` is this extension's own and ``/theme`` is a
+command only the terminal UI adds, so ``builtin_commands()`` lacks it until the first ``/reload``."""
 
 FIELDS = ("command", "description", "cwd", "env", "enabled", "install", "git", "key")
 CHOOSER = "{chooser}"
@@ -67,6 +62,8 @@ DEFAULTS = {
     "change_note": True,
     "chooser_prefix": "@",
     "chooser_max": 20,
+    "chooser_to_draft": True,
+    "report_with": "show",
 }
 
 SCHEMA = {
@@ -75,55 +72,71 @@ SCHEMA = {
         "description": "Tools by name, merged over the built-in ones (lazygit, yazi, btop, lazydocker, k9s, gh-dash, tig, gitui) "
         "field by field: {\"name\": {\"command\": [argv...], \"description\", \"cwd\", \"env\", \"enabled\", \"install\", "
         "\"git\", \"key\"}}. {cwd} and {chooser} in command are replaced; a new tool needs a command; "
-        "{\"lazygit\": {\"enabled\": false}} turns a built-in off; \"key\" binds a key to the tool."
+        "{\"lazygit\": {\"enabled\": false}} turns a built-in off; \"key\" binds a key to the tool (it runs the tool "
+        "directly, as a terminal key). The global, project and local settings are merged tool by tool, so a project "
+        "adds or changes one tool without replacing yours. A bad entry is skipped with a warning; the others load.",
+        "merge": "deep",
     },
     "change_note": {"description": "After a git tool exits, say in one line if it changed the branch or the changed files."},
     "chooser_prefix": {"description": "Put before each path a file chooser (yazi) picked, so it can be pasted as a mention."},
     "chooser_max": {"description": "Most chosen paths shown right after the tool exits (/tui last lists all).", "min": 1, "max": 1000},
+    "chooser_to_draft": {"description": "Add the paths a file chooser (yazi) picked to the end of your message box, so they are ready to send."},
+    "report_with": {
+        "description": "How a tool reports (exit status, chosen paths, git changes): \"show\" adds a block to the transcript that stays, "
+        "\"notify\" shows a toast that vanishes (/tui last always repeats it).",
+        "enum": ["show", "notify"],
+    },
 }
 
 
-def parse_tools(overrides):
-    """The effective tools: :data:`BUILTIN_TOOLS` with the user's ``overrides`` merged in; ``ValueError`` naming every fix."""
+def parse_tools(overrides, reserved):
+    """``(tools, problems)``: :data:`BUILTIN_TOOLS` with the user's ``overrides`` merged in, and one text per bad entry.
+
+    A bad entry is skipped whole (a built-in it tried to change stays as it is); the other entries still count.
+    ``reserved`` are the names a tool may not take.
+    """
     where = "extensions.settings.tui_tools.tools"
     problems = []
     tools = {name: {**tool, "command": list(tool["command"]), "env": dict(tool["env"])} for name, tool in BUILTIN_TOOLS.items()}
     for name, user in overrides.items():
         at = f"{where}.{name}"
         if not isinstance(name, str) or not NAME_RE.fullmatch(name):
-            problems.append(f"{where}: {name!r} is not a tool name (it is typed as /name: lowercase letters, digits, _ and -)")
+            problems.append(f"{where}: {name!r} is not a tool name (it is typed as /name: lowercase letters, digits, _ and -); entry skipped")
             continue
-        if name in RESERVED:
-            problems.append(f"{at}: /{name} is a command of minimal itself; give the tool another name")
+        if name in reserved:
+            problems.append(f"{at}: /{name} is a command of minimal itself; give the tool another name (entry skipped)")
             continue
         if not isinstance(user, dict):
-            problems.append(f"{at} must be an object such as {{\"command\": [\"{name}\"]}}")
+            problems.append(f"{at} must be an object such as {{\"command\": [\"{name}\"]}} (entry skipped)")
             continue
         unknown = [key for key in user if key not in FIELDS]
         if unknown:
-            problems.append(f"{at}: unknown field {unknown[0]!r} (known: {', '.join(FIELDS)})")
+            problems.append(f"{at}: unknown field {unknown[0]!r} (known: {', '.join(FIELDS)}); entry skipped")
             continue
-        entry = tools.get(name) or _tool([], f"run {name}", "", git=False)
         if name not in tools and "command" not in user:
-            problems.append(f"{at}.command is required for a tool minimal does not know: set it to a list such as [\"{name}\"]")
+            problems.append(f"{at}.command is required for a tool minimal does not know: set it to a list such as [\"{name}\"] (entry skipped)")
             continue
+        entry = {**tools[name]} if name in tools else _tool([], f"run {name}", "", git=False)
         entry.update(user)
+        bad = [
+            f"{at}.{field} must be {expected}"
+            for field, ok, expected in (
+                ("command", _strings(entry["command"], required=True), "a non-empty list of non-empty strings, e.g. [\"btop\"]"),
+                ("description", isinstance(entry["description"], str), "text"),
+                ("cwd", isinstance(entry["cwd"], str), "a folder (relative to the project) or \"\" for the project"),
+                ("env", isinstance(entry["env"], dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in entry["env"].items()), "an object of text values, e.g. {\"EDITOR\": \"vim\"}"),
+                ("enabled", isinstance(entry["enabled"], bool), "true or false"),
+                ("install", isinstance(entry["install"], str), "text telling how to install it"),
+                ("git", isinstance(entry["git"], bool), "true or false"),
+                ("key", isinstance(entry["key"], str), "a key such as \"ctrl+g\" or \"\" for none"),
+            )
+            if not ok
+        ]
+        if bad:
+            problems.append(f"{'; '.join(bad)} (entry skipped)")
+            continue
         tools[name] = entry
-        for field, ok, expected in (
-            ("command", _strings(entry["command"], required=True), "a non-empty list of non-empty strings, e.g. [\"btop\"]"),
-            ("description", isinstance(entry["description"], str), "text"),
-            ("cwd", isinstance(entry["cwd"], str), "a folder (relative to the project) or \"\" for the project"),
-            ("env", isinstance(entry["env"], dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in entry["env"].items()), "an object of text values, e.g. {\"EDITOR\": \"vim\"}"),
-            ("enabled", isinstance(entry["enabled"], bool), "true or false"),
-            ("install", isinstance(entry["install"], str), "text telling how to install it"),
-            ("git", isinstance(entry["git"], bool), "true or false"),
-            ("key", isinstance(entry["key"], str), "a key such as \"ctrl+g\" or \"\" for none"),
-        ):
-            if not ok:
-                problems.append(f"{at}.{field} must be {expected}")
-    if problems:
-        raise ValueError("; ".join(problems))
-    return tools
+    return tools, problems
 
 
 def _strings(value, *, required=False):
@@ -204,18 +217,36 @@ def chosen_paths(chooser, project, prefix):
     return shown
 
 
+def draft_text(paths):
+    """``paths`` as one run of words for the message box: a path with spaces is quoted, the rest stay as mentions."""
+    return " ".join(f'"{path}"' if re.search(r"\s", path) else path for path in paths)
+
+
 def register(minimal):
     settings = minimal.declare_settings(DEFAULTS, SCHEMA)
     if not settings["enabled"]:
         return
-    tools = parse_tools(settings["tools"])
+    tools, problems = parse_tools(settings["tools"], minimal.builtin_commands() | ALWAYS_RESERVED)
+    for problem in problems:
+        minimal.report_problem(problem)
     state = {"last": [], "registered": set()}
 
     def say(ctx, lines, kind="info", full=None):
-        """Report ``lines`` as a notice (a terminal command's printed output is gone when the interface returns) and keep
-        ``full`` (default ``lines``) for ``/tui last``."""
+        """Report ``lines`` (a terminal command's printed output is gone when the interface returns, so a block that stays,
+        or a toast with ``report_with: notify``) and keep ``full`` (default ``lines``) for ``/tui last``."""
         state["last"] = list(full or lines)
-        ctx.notify("\n".join(lines), kind)
+        text = "\n".join(lines)
+        if settings["report_with"] == "show":
+            ctx.show(text, "error" if kind == "error" else "output")
+        else:
+            ctx.notify(text, kind)
+
+    def to_draft(ctx, paths):
+        """Append ``paths`` to the message box; ``False`` if there is none (plain terminal) or it did not change."""
+        before = ctx.ui.get_draft()
+        lead = " " if before and not before[-1].isspace() else ""
+        ctx.ui.set_draft(f"{lead}{draft_text(paths)} ", append=True)
+        return ctx.ui.get_draft() != before
 
     def launch(name, args, ctx):
         entry = tools[name]
@@ -270,15 +301,18 @@ def register(minimal):
                 paths = chosen_paths(chooser, ctx.cwd, settings["chooser_prefix"])
                 if paths:
                     shown = paths[: settings["chooser_max"]]
-                    add(f"{name} chose {len(paths)} path{'s' * (len(paths) != 1)}: paste or type them in your message")
+                    placed = settings["chooser_to_draft"] and to_draft(ctx, paths)
+                    where = "added to your message" if placed else "paste or type them in your message"
+                    add(f"{name} chose {len(paths)} path{'s' * (len(paths) != 1)}: {where}")
                     lines += shown
                     full += paths
                     if len(paths) > len(shown):
                         lines.append(f"... and {len(paths) - len(shown)} more (/tui last lists all)")
             if entry["git"]:
-                ctx.git()  # makes sure the shared poller runs: the interface asks it to look again when the command ends
+                ctx.git()  # makes sure the shared poller runs
                 if before is not None and (after := git_snapshot(cwd)) is not None and (note := change_line(name, before, after)):
                     add(note)
+                ctx.git_refresh()  # a terminal command's end asks it too, but a key's does not
             ctx.invalidate()
             if lines:
                 say(ctx, lines, kind, full)
@@ -293,8 +327,8 @@ def register(minimal):
         return lambda args, ctx: launch(name, args, ctx)
 
     def keyer(name):
-        # A key runs on a worker thread, where the interface cannot be suspended; the command it queues can.
-        return lambda ctx: ctx.queue_user_message(f"/{name}")
+        # A terminal key runs on the UI thread with the interface suspended, like the terminal command.
+        return lambda ctx: launch(name, "", ctx)
 
     for name, entry in tools.items():
         if not entry["enabled"] or find_executable(entry) is None:
@@ -304,9 +338,9 @@ def register(minimal):
         state["registered"].add(name)
         if entry["key"]:
             try:
-                minimal.register_keybinding(entry["key"], keyer(name), f"open {name}", name=name)
+                minimal.register_keybinding(entry["key"], keyer(name), f"open {name}", name=name, terminal=True)
             except ValueError as exc:
-                raise ValueError(f"extensions.settings.tui_tools.tools.{name}.key: {exc}") from None
+                minimal.report_problem(f"extensions.settings.tui_tools.tools.{name}.key: {exc}; /{name} works without the key")
 
     def listing(ctx):
         print("Terminal tools (open with /<name> [args] or /tui <name> [args]; add or change them in /ext settings tui_tools):")

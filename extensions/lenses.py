@@ -27,8 +27,8 @@ trusted with /trust):
                 return {"output": "\n".join(event["output"].splitlines()[-40:])}
 """
 
-__version__ = "2.4"
-__api__ = "2.3"
+__version__ = "2.5"
+__api__ = "2.4"
 __tags__ = ["context"]
 
 import re
@@ -127,7 +127,7 @@ def _regex(pattern, what, problems):
 
 
 def check_settings(settings):
-    """``(problems, messages, passing, rules, output_dir)`` from ``settings``: what is wrong, each problem with its fix, and the parsed values."""
+    """``(problems, messages, passing, rules, output_dir, repeat_min)`` from ``settings``: what is wrong, each problem with its fix, and the parsed values; what is wrong is left out or back to its default."""
     problems = []
     messages = dict(MESSAGES)
     for key, value in settings["messages"].items():
@@ -150,8 +150,10 @@ def check_settings(settings):
         if (compiled := _regex(pattern, f"passing[{n}]", problems)) is not None
     ]
 
-    if settings["repeat_min"] == 1:
+    repeat_min = settings["repeat_min"]
+    if repeat_min == 1:
         problems.append("repeat_min must be 0 (never) or 2 or more")
+        repeat_min = DEFAULTS["repeat_min"]
 
     rules = []
     for n, rule in enumerate(settings["rules"]):
@@ -189,7 +191,7 @@ def check_settings(settings):
     if not folder or settings["output_dir"].startswith(("/", "\\")) or ".." in parts or ":" in folder:
         problems.append("output_dir must be a folder inside the project, like .minimal/outputs (relative, no '..')")
         folder = OUTPUT_DIR
-    return problems, messages, passing, rules, folder
+    return problems, messages, passing, rules, folder, repeat_min
 
 
 def _python_tests(command, output, passing=None, message=MESSAGES["hidden"]):
@@ -262,10 +264,10 @@ def _save_output(root, raw, folder=OUTPUT_DIR):
 
 def register(minimal):
     settings = minimal.declare_settings(DEFAULTS, SCHEMA)
-    problems, messages, passing, rules, folder = check_settings(settings)
-    if problems:
-        raise ValueError(f"lenses settings: {'; '.join(problems)}")
-    min_chars, head, tail, repeat_min = settings["min_chars"], settings["head"], settings["tail"], settings["repeat_min"]
+    problems, messages, passing, rules, folder, repeat_min = check_settings(settings)
+    for problem in problems:
+        minimal.report_problem(f"{problem} (ignored: the default applies)")
+    min_chars, head, tail = settings["min_chars"], settings["head"], settings["tail"]
     state = {"on": settings["enabled"]}
 
     lenses = [(name, command.pattern, _rule(name, drop, h, t, messages), "(settings)") for name, command, drop, h, t in rules]
@@ -355,4 +357,4 @@ def register(minimal):
         try:
             minimal.register_keybinding(settings["key"], toggle_key, "turn the output lenses on or off", name="toggle")
         except ValueError as exc:
-            raise ValueError(f"lenses: extensions.settings.lenses.key: {exc}; set it to \"\" for no key") from exc
+            minimal.report_problem(f"extensions.settings.lenses.key: {exc}; set it to \"\" for no key (the lenses work without it)")

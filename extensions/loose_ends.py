@@ -6,8 +6,8 @@ note tool; /ends lets you review the backlog and close the finished items. Setti
 instructions the model sees and the review dialog's title.
 """
 
-__version__ = "1.7"
-__api__ = "2.3"
+__version__ = "1.8"
+__api__ = "2.4"
 __tags__ = ["workflow"]
 
 import json
@@ -66,19 +66,21 @@ SCHEMA = {
 
 
 def merge_glyphs(user):
-    """The default glyphs with the user's non-empty printable string overrides; ``ValueError`` for a bad key or value."""
-    glyphs = dict(GLYPHS)
+    """``(glyphs, problems)``: the default glyphs with the user's non-empty printable string overrides, and one text per
+    key or value that is ignored (its kind keeps the default glyph)."""
+    glyphs, problems = dict(GLYPHS), []
     for key, value in user.items():
         if key not in GLYPHS:
-            raise ValueError(
-                f"loose_ends: extensions.settings.loose_ends.glyphs has unknown kind {key!r} (known: {', '.join(KINDS)})"
+            problems.append(
+                f"extensions.settings.loose_ends.glyphs has unknown kind {key!r} (known: {', '.join(KINDS)}); ignored"
             )
-        if not isinstance(value, str) or not value or not value.isprintable():
-            raise ValueError(
-                f"loose_ends: extensions.settings.loose_ends.glyphs.{key} must be a short printable string"
+        elif not isinstance(value, str) or not value or not value.isprintable():
+            problems.append(
+                f"extensions.settings.loose_ends.glyphs.{key} must be a short printable string; the default {GLYPHS[key]!r} is used"
             )
-        glyphs[key] = value
-    return glyphs
+        else:
+            glyphs[key] = value
+    return glyphs, problems
 
 
 def _load(path, default):
@@ -149,7 +151,9 @@ def register(minimal):
     settings = minimal.declare_settings(DEFAULTS, SCHEMA)
     if not settings["enabled"]:
         return
-    glyphs = merge_glyphs(settings["glyphs"])
+    glyphs, problems = merge_glyphs(settings["glyphs"])
+    for problem in problems:
+        minimal.report_problem(problem)
     STATE_FILE = minimal.data_dir() / "state.json"
     minimal.register_tool(
         name="note",

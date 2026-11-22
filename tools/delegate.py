@@ -5,7 +5,8 @@ may use every tool the current mode allows, or only the ``tools`` the model name
 to the caller, which keeps long searches and investigations out of the main conversation. A delegate that fails,
 runs out of turns (``max_turns``) or is interrupted comes back as a tool error that names the status and carries its
 partial text. The user sees its tool calls (and the one running now next to the working indicator), answers the same
-confirmations and can interrupt it. Delegates do not start delegates unless the ``max_depth`` setting allows it.
+confirmations and can interrupt it. Delegates do not start delegates unless the ``max_depth`` setting allows it. A
+delegate may work in a folder of the project (``cwd``): its file tools, ``bash`` and permission rules follow it.
 
 Settings (``/ext settings delegate``): ``max_depth`` (nesting), ``default_max_turns`` (0: the ``agent.max_turns``
 setting) and ``max_turns_limit`` (the most the model may ask for), ``reasoning_effort`` (how hard a delegate thinks;
@@ -16,10 +17,12 @@ clash), ``default_role``, ``role_chars`` and ``note`` (the text added to its sys
 Install it with ``/ext``.
 """
 
+import collections
 import threading
+from pathlib import Path
 
-__version__ = "2.0"
-__api__ = "2.3"
+__version__ = "2.1"
+__api__ = "2.4"
 __tags__ = ["agents"]
 
 NAME = "delegate"
@@ -96,6 +99,22 @@ def _clean_max_turns(value, limit):
     return value
 
 
+def _clean_cwd(value, ctx):
+    """The absolute folder a ``cwd`` input names, or ``None`` for none; it is relative to the project, must exist and must
+    stay inside it (a delegate in another folder would also leave the workspace checks of that folder behind)."""
+    if value is None or value == "":
+        return None
+    if not isinstance(value, str):
+        raise ValueError("delegate: cwd must be a folder of the project, relative to it, such as 'src'")
+    root = Path(ctx.cwd).resolve()
+    folder = (root / value).resolve()
+    if not folder.is_relative_to(root):
+        raise ValueError(f"delegate: cwd {value!r} is outside the project ({root}); name a folder inside it")
+    if not folder.is_dir():
+        raise ValueError(f"delegate: cwd {value!r} is not an existing folder of the project ({root})")
+    return str(folder)
+
+
 def _failure(result):
     """The tool error text for a delegate that did not finish, with what it had written so far."""
     what = {"interrupted": "was interrupted before it finished", "max_turns": "ran out of turns"}.get(
@@ -116,19 +135,19 @@ def _read_only_names(ctx, exclude=()):
 
 def register(minimal):
     settings = minimal.declare_settings(DEFAULTS, SCHEMA)
-    running = threading.local()  # ``role`` and ``effort`` of the delegate running on this thread; unset when none runs
-
-    @minimal.on("before_request")
-    def delegate_effort(event):
-        effort = getattr(running, "effort", None)
-        if event["nested"] and effort:
-            return {"options": {"reasoning_effort": effort}}
+    roles = collections.Counter()  # the roles of the delegates running now
+    lock = threading.Lock()
 
     @minimal.on("tool_call")
     def delegate_progress(event):
-        role = getattr(running, "role", None)
-        if role and settings["progress"]:
-            event["ctx"].progress(f"{role}: {event['name']}")
+        if not settings["progress"] or event["agent_id"] == "main":
+            return
+        ctx = event["ctx"]
+        name = next((agent.name for agent in ctx.agents() if agent.id == event["agent_id"]), None)
+        with lock:
+            running = roles[name] > 0
+        if running:
+            ctx.progress(f"{name}: {event['name']}")
 
     def run_delegate(input, ctx):
         task = str(input.get("task", "")).strip()
@@ -169,8 +188,9 @@ def register(minimal):
                     f"delegate: the parallel setting limits delegates to read_only tools; {', '.join(writers)} "
                     "is not one. Drop it from tools, or set parallel to false to allow it"
                 )
-        previous = getattr(running, "role", None), getattr(running, "effort", None)
-        running.role, running.effort = role, effort
+        cwd = _clean_cwd(input.get("cwd"), ctx)
+        with lock:
+            roles[role] += 1
         if settings["progress"]:
             ctx.progress(f"{role}: started")
         try:
@@ -182,10 +202,13 @@ def register(minimal):
                 ),
                 model=model,
                 max_turns=max_turns,
+                cwd=cwd,
+                reasoning_effort=effort,
                 **limits,
             )
         finally:
-            running.role, running.effort = previous
+            with lock:
+                roles[role] -= 1
             if settings["progress"]:
                 ctx.progress(None)
         if result.status != "done":
@@ -238,6 +261,10 @@ def register(minimal):
                     "type": "string",
                     "enum": list(EFFORTS),
                     "description": "How hard the delegate thinks (default: the session's)",
+                },
+                "cwd": {
+                    "type": "string",
+                    "description": "A folder of the project, relative to it, where the delegate works (default: the project)",
                 },
             },
             "required": ["task"],

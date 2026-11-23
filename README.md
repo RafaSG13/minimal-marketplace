@@ -74,6 +74,8 @@ The paths below are the marketplace folders.
 | ---- | ---- | ------------ |
 | `tools/ask_user` | `tools/ask_user.py` | Lets the model ask you a clarifying question (free text or pick one option) instead of guessing; the option limit and the no-answer text are settings. |
 | `tools/delegate` | `tools/delegate.py` | Hands a self-contained task to a fresh agent and returns only its final message; tool allow-list, model, reasoning effort, turn limit and role name, progress while it runs, optionally read-only so several delegates overlap, an optional `cwd` folder; fails with its status instead of hanging. Replaces `tools/subagent`. Needs minimal 0.10. |
+| `tools/fs` | `tools/fs.py` | Filesystem tools for the model: `fs_tree`, `fs_stat`, `fs_read_many`, `fs_find` (read-only, parallel) and `fs_mkdir`, `fs_move`, `fs_copy`, `fs_delete` (they ask first; a delete goes to a trash folder you can restore from). Paths stay inside the working folder unless `allow_outside`; output limits, ignored folders and trash are settings. |
+| `tools/git` | `tools/git.py` | Git tools for the model: `git_status`, `git_diff`, `git_log`, `git_show`, `git_blame`, `git_branch` (read-only, parallel, no prompt) and `git_add`, `git_commit`, `git_switch` (they ask first; no amend, no `--no-verify`, no history rewriting). Output clipping, timeout, log length, a commit trailer and `mutations` (false removes the three writers) are settings. Needs `git`. |
 | `tools/web_search` | `tools/web_search.py` | Web search through the Brave Search API; parallel (read-only) calls, result count, timeout, clipping, locale and safe search are settings. Needs `BRAVE_API_KEY`. Needs minimal 0.10. |
 
 ### Themes

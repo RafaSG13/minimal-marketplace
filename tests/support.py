@@ -106,6 +106,10 @@ class ItemTest(unittest.TestCase):
         ):
             patcher.start()
             self.addCleanup(patcher.stop)
+        # no signing, hooks, fsmonitor daemons or housekeeping from the developer's own git configuration
+        env = mock.patch.dict(os.environ, {"GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull})
+        env.start()
+        self.addCleanup(env.stop)
         self._settings: dict[str, dict] = {}
         self._bin: Path | None = None
 

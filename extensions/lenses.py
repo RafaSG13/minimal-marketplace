@@ -27,10 +27,11 @@ trusted with /trust):
                 return {"output": "\n".join(event["output"].splitlines()[-40:])}
 """
 
-__version__ = "2.5"
+__version__ = "2.6"
 __api__ = "2.4"
 __tags__ = ["context"]
 
+import os
 import re
 import sys
 from pathlib import Path, PurePosixPath
@@ -138,7 +139,7 @@ def check_settings(settings):
         else:
             try:
                 value.format(**MESSAGE_FIELDS[key])
-            except (KeyError, IndexError, ValueError) as e:
+            except (KeyError, IndexError, ValueError, AttributeError, TypeError) as e:
                 fields = ", ".join("{" + f + "}" for f in MESSAGE_FIELDS[key])
                 problems.append(f"messages.{key} is not a valid template ({type(e).__name__}: {e}); it may use {fields}")
             else:
@@ -254,11 +255,25 @@ def _outputs(root, folder=OUTPUT_DIR):
 
 
 def _save_output(root, raw, folder=OUTPUT_DIR):
+    """Save ``raw`` as the next ``NNNN.txt`` of ``folder`` and return ``NNNN``; the folder (when new) and the file are
+    private to the owner, since bash output can hold secrets, and an existing file is never overwritten.
+
+    Raises:
+        OSError: if the folder or the file cannot be written.
+    """
     numbers = [int(p.stem) for p in _outputs(root, folder) if p.stem.isdecimal()]
     n = max(numbers, default=0) + 1
     target = Path(root, folder)
-    target.mkdir(parents=True, exist_ok=True)
-    (target / f"{n:04d}.txt").write_text(raw, encoding="utf-8")
+    os.makedirs(target, mode=0o700, exist_ok=True)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    while True:
+        try:
+            fd = os.open(target / f"{n:04d}.txt", flags, 0o600)
+            break
+        except FileExistsError:
+            n += 1
+    with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+        f.write(raw)
     return n
 
 
@@ -300,10 +315,14 @@ def register(minimal):
                 break
         out = _repeat(out, repeat_min, messages["repeated"])
         if len(out) > head + tail:
-            out = out[:head] + "\n" + messages["omitted"].format(chars=len(out) - head - tail) + "\n" + out[-tail:]
+            out = out[:head] + "\n" + messages["omitted"].format(chars=len(out) - head - tail) + "\n" + out[len(out) - tail :]
         if out == raw:
             return None
-        n = _save_output(event["ctx"].cwd, raw, folder)
+        try:
+            n = _save_output(event["ctx"].cwd, raw, folder)
+        except OSError as e:
+            print(f"[lenses] could not save the full output ({e}); it is left whole", file=sys.stderr)
+            return None
         out += "\n" + messages["saved"].format(path=f"{folder}/{n:04d}.txt", lines=len(raw.splitlines()))
         event["output"] = out
         return {"output": out}

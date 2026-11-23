@@ -7,18 +7,20 @@ ignored, how many suggestions are listed, the rule wording, the rules file and
 heading, and the valid tool names.
 """
 
-__version__ = "1.7"
+__version__ = "1.8"
 __api__ = "2.4"
 __tags__ = ["workflow"]
 
 import json
+import os
 import re
 from collections import Counter
 from pathlib import Path
 
 from minimal.api import USER_DENIED, result_text
 
-STATE_FILE = None
+STATE_FILE = "state.json"
+"""Name of the file, in the extension's data folder, that remembers the indexed sessions, tools and rules."""
 USAGE = "usage: /crystallize [all]"
 DENIED = "Error: " + USER_DENIED
 SKIP_FIRST = {"ls", "cd", "pwd", "cat", "echo", "head", "tail", "grep", "rg", "find", "sed", "wc"}
@@ -89,7 +91,7 @@ def check_settings(settings):
     for name in RULE_FIELDS:
         try:
             text = fixed[name].format(name="n", detail="d")
-        except (KeyError, IndexError, ValueError, AttributeError) as exc:
+        except (KeyError, IndexError, ValueError, AttributeError, TypeError) as exc:
             reset(
                 name,
                 f"is not a valid template ({exc!r}); use only {{name}} and {{detail}}, and write literal braces as {{{{ and }}}}",
@@ -119,7 +121,8 @@ def register(minimal):
     minimal.register_tool(
         name=__TOOLNAME__,
         run=lambda input, ctx: bash({"command": COMMAND}, ctx),
-        description=f"Run `{COMMAND}` in the working directory and return its output. Runs without asking: the user approved this exact command.",
+        description=f"Run `{COMMAND}` in the working directory and return its output. Prefer it over bash for this exact command: it is fixed, so there is nothing to type.",
+        confirm=True,
     )
 '''
 
@@ -141,8 +144,14 @@ def _save(path, data):
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
-def _state():
-    data = _load(STATE_FILE, None)
+def _inside(root, path):
+    """Whether ``path`` is ``root`` or below it once symlinks are resolved (also for a ``path`` that does not exist yet)."""
+    root, real = os.path.realpath(root), os.path.realpath(path)
+    return real == root or real.startswith(root + os.sep)
+
+
+def _state(path):
+    data = _load(path, None)
     if not isinstance(data, dict):
         data = {}
     return {
@@ -167,7 +176,8 @@ def _rule_text(name, detail, settings):
         template = settings["file_rule"]
     else:
         template = settings["other_rule"]
-    return template.format(name=name, detail=detail)
+    # one line: a rule that is a command or path with a newline in it must not add lines of its own to AGENTS.md
+    return template.format(name=name, detail=" ".join(str(detail).split()))
 
 
 def _scan(ctx, session_ids, known_tools, known_rules, settings):
@@ -229,12 +239,12 @@ def _scan(ctx, session_ids, known_tools, known_rules, settings):
     return habits[: settings["max_habits"]], rules[: settings["max_rules"]]
 
 
-def _crystallize(args, ctx, settings):
+def _crystallize(args, ctx, settings, state_file):
     arg = args.strip()
     if arg not in ("", "all"):
         raise ValueError(USAGE)
     root = Path(ctx.cwd)
-    state = _state()
+    state = _state(state_file)
     ids = [] if arg == "all" else state["sessions"]
     if not ids:
         if arg != "all":
@@ -277,6 +287,10 @@ def _crystallize(args, ctx, settings):
             print("Skipped: no name given")
         elif not re.fullmatch(settings["tool_name_pattern"], name):
             print(f"Skipped: {name!r} is not a valid tool name (use {settings['tool_name_pattern']})")
+        elif not name.isidentifier() or name.startswith("__"):
+            print(f"Skipped: {name!r} must be a plain name (letters, digits and _) to be written as .minimal/extensions/tools/{name}.py")
+        elif not _inside(root, target):
+            print(f"Skipped: .minimal/extensions/tools/{name}.py would be written outside the project (a symlink?)")
         elif name in ctx.tools:
             print(f"Skipped: a tool named {name} already exists")
         elif target.exists():
@@ -289,10 +303,15 @@ def _crystallize(args, ctx, settings):
             state["tools"][name] = command
             wrote = True
             print(f"Tool written: .minimal/extensions/tools/{name}.py")
+            print(f'It asks before each run; to run it without asking add "{name}" to permissions.allow.')
 
     chosen = [rules[int(v.partition(":")[2])] for v in ticked if v.startswith("rule:")]
     if chosen:
         agents = root / settings["rules_file"]
+        if not _inside(root, agents):
+            print(f"Skipped the rules: {settings['rules_file']} resolves outside the project (a symlink?)")
+            chosen = []
+    if chosen:
         try:
             text = agents.read_text(encoding="utf-8")
         except OSError:
@@ -308,34 +327,36 @@ def _crystallize(args, ctx, settings):
         state["rules"].extend(r["key"] for r in chosen)
         print(f"Added {len(chosen)} rule(s) to {settings['rules_file']}")
 
-    _save(STATE_FILE, state)
+    _save(state_file, state)
     if wrote:
         print(ctx.reload())
 
 
 def register(minimal):
-    global STATE_FILE
     settings = minimal.declare_settings(DEFAULTS, SCHEMA)
     if not settings["enabled"]:
         return
     settings, problems = check_settings(settings)
     for problem in problems:
         minimal.report_problem(problem)
-    STATE_FILE = minimal.data_dir() / "state.json"
+
+    def state_file():
+        # looked up when used: minimal.data_dir creates the folder, and register must not write anything
+        return minimal.data_dir() / STATE_FILE
 
     def on_turn_end(event):
         ctx = event.get("ctx")
         if ctx is None or event.get("nested") or event["messages"] is not ctx.messages:
             return None
-        state = _state()
+        state = _state(state_file())
         if ctx.session_id not in state["sessions"]:
             state["sessions"].append(ctx.session_id)
-            _save(STATE_FILE, state)
+            _save(state_file(), state)
         return None
 
     minimal.on("turn_end", on_turn_end)
     minimal.register_command(
         "crystallize",
-        lambda args, ctx: _crystallize(args, ctx, settings),
+        lambda args, ctx: _crystallize(args, ctx, settings, state_file()),
         description="turn repeated commands into tools and denials into AGENTS.md rules",
     )

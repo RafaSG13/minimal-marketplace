@@ -12,12 +12,14 @@ set the timeout, how much output is kept, a debounce, the notes the model sees,
 progress and failure notices, and the panel.
 """
 
-__version__ = "2.7"
+__version__ = "2.8"
 __api__ = "2.4"
 __tags__ = ["safety", "diagnostics"]
 
 import hashlib
 import json
+import os
+import signal
 import subprocess
 import time
 from pathlib import Path
@@ -25,6 +27,8 @@ from pathlib import Path
 from minimal.api import WIDGET_AREAS
 
 GIT_SCOPE = ("--", ".", ":(exclude).minimal")
+SECRET_ENV = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "BRAVE_API_KEY")
+"""Variables no child process of the tripwire gets: the model's keys must not reach a repository's scripts."""
 USAGE = "usage: /tripwire add <command> | rm <n> | run"
 
 BROKE_NOTE = '[tripwire] "{cmd}" was passing before this call and fails now:\n{tail}'
@@ -92,6 +96,14 @@ SCHEMA = {
 STATE_FILE = None
 
 
+def _env(git=False):
+    """The environment of a child: ours without ``SECRET_ENV``; for git also no prompts, pager or colour."""
+    env = {k: v for k, v in os.environ.items() if k not in SECRET_ENV}
+    if git:
+        env.update(GIT_TERMINAL_PROMPT="0", PAGER="cat", GIT_PAGER="cat", NO_COLOR="1")
+    return env
+
+
 def check_settings(settings):
     """``(settings, problems)``: ``settings`` as a dict where what is inconsistent beyond what the schema checks is
     replaced (a bad template or glyph by its default; of ``commands`` only the bad entries are dropped, so one typo
@@ -119,8 +131,19 @@ def check_settings(settings):
 
 
 def _git(cwd, *args):
+    """``git`` output, or ``None`` if it failed. ``core.fsmonitor`` is off: a repository's own config must not run a
+    program just because we looked at its status."""
     try:
-        r = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=10)
+        r = subprocess.run(
+            ["git", "-c", "core.fsmonitor=false", *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=10,
+            stdin=subprocess.DEVNULL,
+            env=_env(git=True),
+        )
     except (OSError, subprocess.TimeoutExpired):
         return None
     return r.stdout if r.returncode == 0 else None
@@ -141,25 +164,58 @@ def _save(root, data):
 
 
 def _state():
+    """The saved invariants (none when nothing was saved yet).
+
+    Raises:
+        ValueError: if the state file exists but cannot be read; the invariants must not silently stop guarding.
+    """
+    if not STATE_FILE.exists():
+        return {"wires": [], "edits_since_green": 0}
     data = _load(STATE_FILE, None)
     if not isinstance(data, dict) or not isinstance(data.get("wires"), list):
-        return {"wires": [], "edits_since_green": 0}
+        raise ValueError(
+            f"the tripwire state file {STATE_FILE} is unreadable; delete it to start over "
+            "(your invariants in it are lost; ones from the commands setting come back)"
+        )
     data.setdefault("edits_since_green", 0)
     return data
 
 
 def _run_wire(cmd, cwd, settings):
+    """Run ``cmd`` in bash in ``cwd``; ``(passed, tail)``. A command that cannot start or runs over ``timeout`` fails."""
     timeout = settings["timeout"]
     try:
-        r = subprocess.run(["/bin/bash", "-c", cmd], cwd=cwd, capture_output=True, text=True, timeout=timeout)
+        proc = subprocess.Popen(
+            ["/bin/bash", "-c", cmd],
+            cwd=cwd,
+            env=_env(),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            errors="replace",
+            start_new_session=True,
+        )
+    except OSError as exc:
+        return False, f"could not run it: {exc}"
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except OSError:
+            proc.kill()
+        try:
+            proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass  # a daemonised grandchild still holds the pipes; it is not ours to wait for
         return False, f"timed out after {timeout}s"
-    lines = (r.stdout + r.stderr).strip().splitlines()
+    lines = (stdout + stderr).strip().splitlines()
     tail = "\n".join(lines[-settings["tail_lines"] :]) or "(no output)"
     clip = settings["clip_chars"]
     if clip and len(tail) > clip:
         tail = "…" + tail[-clip:]
-    return r.returncode == 0, tail
+    return proc.returncode == 0, tail
 
 
 def _fingerprint(cwd):
@@ -197,11 +253,15 @@ def _sync_commands(state, commands):
 class TripwireWidget:
     """Bar showing how many invariants pass."""
 
-    def __init__(self, settings):
+    def __init__(self, settings, view):
         self.settings = settings
+        self.view = view
 
     def render(self, ctx):
-        state = _state()
+        try:
+            state = self.view()
+        except ValueError:
+            return f"{self.settings['fail_glyph']} tripwire state unreadable: delete {STATE_FILE}"
         wires = state["wires"]
         if not wires:
             return None
@@ -224,22 +284,41 @@ def register(minimal):
     for problem in problems:
         minimal.report_problem(problem)
     STATE_FILE = minimal.data_dir() / "state.json"
-    legacy = Path.home() / ".minimal" / "state" / "tripwire" / (
-        hashlib.sha256(str(Path.cwd().resolve()).encode()).hexdigest()[:16] + ".json"
-    )
-    try:
-        if legacy.is_file() and not STATE_FILE.exists():
-            legacy.replace(STATE_FILE)
-    except OSError:
-        pass
     commands = [c.strip() for c in dict.fromkeys(settings["commands"])]
-    state = _state()
-    if (commands or any(w.get("configured") for w in state["wires"])) and _sync_commands(state, commands):
-        _save(Path.cwd(), state)
-    mem = {"fp": _fingerprint(Path.cwd()) if state["wires"] else None, "last": None}
+    mem = {"fp": None, "last": None, "booted": False}
+
+    def view():
+        """The state as the panel shows it: the saved wires plus the ``commands`` setting, nothing written."""
+        state = _state()
+        if commands or any(w.get("configured") for w in state["wires"]):
+            _sync_commands(state, commands)
+        return state
+
+    def boot(root):
+        """First use (never at ``register``): move the old state file, apply the ``commands`` setting to the saved
+        wires and take the fingerprint changes are measured against."""
+        if mem["booted"]:
+            return
+        mem["booted"] = True
+        legacy = Path.home() / ".minimal" / "state" / "tripwire" / (
+            hashlib.sha256(str(Path(root).resolve()).encode()).hexdigest()[:16] + ".json"
+        )
+        try:
+            if legacy.is_file() and not STATE_FILE.exists():
+                legacy.replace(STATE_FILE)
+        except OSError:
+            pass
+        try:
+            state = _state()
+        except ValueError:
+            return  # the command and the next tool result tell the user; a handler must not raise from here
+        if (commands or any(w.get("configured") for w in state["wires"])) and _sync_commands(state, commands):
+            _save(root, state)
+        mem["fp"] = _fingerprint(root) if state["wires"] else None
 
     def tripwire(args, ctx):
         root = Path(ctx.cwd)
+        boot(root)
         state = _state()
         wires = state["wires"]
         verb, _, rest = args.strip().partition(" ")
@@ -283,9 +362,20 @@ def register(minimal):
         "tripwire", tripwire, description="invariants: /tripwire add <command> | rm <n> | run"
     )
 
+    def before_call(event):
+        boot(Path(event["ctx"].cwd))
+        return None
+
+    minimal.on("tool_call", before_call)
+
     def after_call(event):
         root = Path(event["ctx"].cwd)
-        state = _state()
+        boot(root)
+        try:
+            state = _state()
+        except ValueError as exc:
+            event["output"] += f"\n[tripwire] the invariants did not run: {exc}"
+            return {"output": event["output"]}
         wires = state["wires"]
         if not wires:
             return None
@@ -336,7 +426,7 @@ def register(minimal):
 
     minimal.register_panel(
         "tripwire",
-        TripwireWidget(settings).render,
+        TripwireWidget(settings, view).render,
         area=settings["area"],
         order=settings["order"],
         title=settings["title"] or None,

@@ -4,13 +4,17 @@
 many lines it may change; /fence off removes the fence. Settings (`/ext settings
 scope_fence`) set a default budget, the guarded tools, exempt prefixes, the
 messages the model sees, the panel and an optional status segment and key.
+
+The guard fails closed: if its saved fence cannot be read, or a diff budget cannot be measured (no git repository or
+commit), write and edit are blocked with what to do instead of being allowed.
 """
 
-__version__ = "1.8"
+__version__ = "1.9"
 __api__ = "2.4"
 __tags__ = ["safety"]
 
 import json
+import os
 import shlex
 import subprocess
 from pathlib import Path, PurePosixPath
@@ -18,6 +22,8 @@ from pathlib import Path, PurePosixPath
 from minimal.api import WIDGET_AREAS, STATUS_SIDES, glob_regex
 
 GIT_SCOPE = ("--", ".", ":(exclude).minimal")
+SECRET_ENV = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "BRAVE_API_KEY")
+"""Variables the git children do not get."""
 STATE_FILE = None
 USAGE = "usage: /fence <path-or-glob>... [--lines N] | /fence off"
 OUTSIDE_MESSAGE = (
@@ -27,6 +33,15 @@ OUTSIDE_MESSAGE = (
 BUDGET_MESSAGE = (
     "diff budget used up ({used}/{lines} changed lines). Stop editing, summarise what is done and what remains."
 )
+UNREADABLE_MESSAGE = (
+    "the scope fence state {path} is unreadable ({why}), so edits are blocked rather than allowed. "
+    "Do not work around it: tell the user to run /fence off, or /fence <paths> to set a new fence."
+)
+UNMEASURABLE_MESSAGE = (
+    "the diff budget ({lines} lines) cannot be measured: `git diff HEAD` failed in {cwd} (not a git repository, or no "
+    "commit yet), so edits are blocked rather than allowed. Tell the user to make a first commit or to run /fence "
+    "again without --lines."
+)
 BASH_MESSAGE = "[fence] this command changed files outside the fence: {paths}. Revert them unless the user asked for it."
 MESSAGE_FIELDS = {
     "outside_message": {"path": "src/x.py", "globs": "docs/**"},
@@ -34,6 +49,7 @@ MESSAGE_FIELDS = {
     "bash_message": {"paths": "src/x.py"},
 }
 GUARDABLE = ("write", "edit")
+UNREADABLE_PANEL = "fence state unreadable: edits are blocked; /fence off clears it"
 
 DEFAULTS = {
     "enabled": True,
@@ -109,18 +125,50 @@ def check_settings(settings):
 
 
 def _git(cwd, *args):
+    """``git`` output, or ``None`` if it failed. ``core.fsmonitor`` is off: a repository's own config must not run a
+    program because we looked at its status."""
+    env = {k: v for k, v in os.environ.items() if k not in SECRET_ENV}
+    env.update(GIT_TERMINAL_PROMPT="0", PAGER="cat", GIT_PAGER="cat", NO_COLOR="1")
     try:
-        r = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=10)
+        r = subprocess.run(
+            ["git", "-c", "core.fsmonitor=false", *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=10,
+            stdin=subprocess.DEVNULL,
+            env=env,
+        )
     except (OSError, subprocess.TimeoutExpired):
         return None
     return r.stdout if r.returncode == 0 else None
 
 
-def _load(path, default):
+def _fence(path):
+    """The saved fence, or ``None`` when there is none.
+
+    Raises:
+        ValueError: if the file exists but is not a fence; a guard that cannot read its fence must not allow everything.
+    """
+    path = Path(path)
+    if not path.exists():
+        return None
     try:
-        return json.loads(Path(path).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return default
+        fence = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ValueError(UNREADABLE_MESSAGE.format(path=path, why=str(exc).splitlines()[0] if str(exc) else "unreadable")) from None
+    ok = (
+        isinstance(fence, dict)
+        and isinstance(fence.get("globs"), list)
+        and all(isinstance(g, str) for g in fence["globs"])
+        and isinstance(fence.get("blocked", []), list)
+        and (fence.get("lines") is None or isinstance(fence["lines"], int))
+    )
+    if not ok:
+        raise ValueError(UNREADABLE_MESSAGE.format(path=path, why="not a fence"))
+    fence.setdefault("blocked", [])
+    return fence
 
 
 def _save(path, data):
@@ -195,7 +243,10 @@ class FenceWidget:
         self.settings = settings
 
     def render(self, ctx):
-        fence = _load(STATE_FILE, None)
+        try:
+            fence = _fence(STATE_FILE)
+        except ValueError:
+            return UNREADABLE_PANEL
         if not fence:
             return None
         lines = list(fence["globs"] or ["(any path)"])
@@ -227,7 +278,7 @@ def register(minimal):
         path = STATE_FILE
         tokens = shlex.split(args)
         if not tokens:
-            fence = _load(path, None)
+            fence = _fence(path)
             print(_summary(fence, settings) if fence else f"No fence. {USAGE}")
             return
         if tokens == ["off"]:
@@ -261,17 +312,22 @@ def register(minimal):
     def guard(event):
         root = Path(event["ctx"].cwd).resolve()
         path = STATE_FILE
-        fence = _load(path, None)
+        name = event["name"]
+        is_bash = name == "bash"
+        raw = event["input"].get("path") if isinstance(event["input"], dict) else None
+        if not is_bash and not (name in guarded and isinstance(raw, str)):
+            return None
+        try:
+            fence = _fence(path)
+        except ValueError as exc:
+            return None if is_bash else {"block": True, "reason": str(exc)}
         if not fence:
             return None
-        name = event["name"]
-        if name == "bash":
+        if is_bash:
             if settings["check_bash"]:
                 mem["before"] = _status(root)
             return None
-        if name not in guarded or not isinstance(event["input"].get("path"), str):
-            return None
-        rel = _rel(root, event["input"]["path"])
+        rel = _rel(root, raw)
         globs = fence["globs"]
         if not _inside(rel, globs, exempt):
             if rel not in fence["blocked"]:
@@ -281,7 +337,9 @@ def register(minimal):
         lines = _budget(fence, settings)
         if lines and not rel.startswith(exempt):
             used = _used(root)
-            if used is not None and used >= lines:
+            if used is None:
+                return {"block": True, "reason": UNMEASURABLE_MESSAGE.format(lines=lines, cwd=root)}
+            if used >= lines:
                 return {"block": True, "reason": settings["budget_message"].format(used=used, lines=lines)}
         return None
 
@@ -290,7 +348,10 @@ def register(minimal):
             return None
         root = Path(event["ctx"].cwd).resolve()
         path = STATE_FILE
-        fence = _load(path, None)
+        try:
+            fence = _fence(path)
+        except ValueError:
+            fence = None
         before, mem["before"] = mem["before"], None
         if not fence or before is None:
             return None
@@ -320,7 +381,10 @@ def register(minimal):
     )
 
     def segment(ctx):
-        fence = _load(STATE_FILE, None)
+        try:
+            fence = _fence(STATE_FILE)
+        except ValueError:
+            return "fence unreadable"
         if not fence:
             return None
         budget = _budget(fence, settings)
@@ -337,7 +401,11 @@ def register(minimal):
 
         def show_fence(ctx):
             """Show the active fence."""
-            fence = _load(STATE_FILE, None)
+            try:
+                fence = _fence(STATE_FILE)
+            except ValueError as exc:
+                ctx.notify(str(exc), "warning")
+                return
             ctx.notify(_summary(fence, settings) if fence else f"No fence. {USAGE}")
 
         try:

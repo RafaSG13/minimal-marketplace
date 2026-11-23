@@ -18,14 +18,14 @@ try:
 except ImportError:
     render = None
 
-__version__ = "1.8"
+__version__ = "1.9"
 __api__ = "2.3"
 __tags__ = ["ui"]
-__dependencies__ = ["termaid>=0.12"]
+__dependencies__ = ["termaid>=0.12,<1"]
 
 INSTALL_HINT = (
-    "the mermaid extension needs termaid: run `uv pip install termaid` in minimal's environment "
-    "(or start minimal with `uv run --with termaid minimal`)"
+    "the mermaid extension needs termaid>=0.12,<1: run `uv pip install 'termaid>=0.12,<1'` in minimal's environment "
+    "(or start minimal with `uv run --with 'termaid>=0.12,<1' minimal`)"
 )
 
 ARROW_STYLES = ("pointer", "triangle", "outline")

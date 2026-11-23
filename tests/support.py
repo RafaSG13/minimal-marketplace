@@ -169,6 +169,9 @@ class ItemTest(unittest.TestCase):
             project_trusted=True,
             notify=lambda *a, **k: None,
             show=lambda *a, **k: None,
+            git=lambda: None,
+            invalidate=lambda: None,
+            queue_user_message=lambda text: None,
         )
         base.update(extra)
         return SimpleNamespace(**base)
@@ -202,6 +205,8 @@ class ItemTest(unittest.TestCase):
         git("config", "user.name", "Test")
         git("config", "user.email", "test@example.com")
         git("config", "commit.gpgsign", "false")
+        git("config", "gc.auto", "0")  # no detached housekeeping writing into .git while the folder is removed
+        git("config", "maintenance.auto", "false")
         for rel, text in files.items():
             target = repo / rel
             target.parent.mkdir(parents=True, exist_ok=True)

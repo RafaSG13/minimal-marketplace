@@ -44,7 +44,7 @@ TAGS = (
     "sandbox",
 )
 """The allowed ``__tags__``."""
-TESTED: frozenset[str] = frozenset()
+TESTED: frozenset[str] = frozenset({"extensions/tui_tools"})
 """Ids (``extensions/<name>.py`` or ``tools/<name>.py`` paths without the suffix, e.g. ``tools/git``) of the items that
 must have ``tests/test_<name>.py`` and follow the item standard (explicit ``read_only``/``confirm``, a settings
 schema). It grows as items are written or audited."""

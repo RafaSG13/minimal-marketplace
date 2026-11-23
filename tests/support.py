@@ -83,6 +83,34 @@ class FakeUI:
         self.draft = self.draft + text if append else text
 
 
+FAKE_CLI = """#!/bin/sh
+python3 -c 'import json,sys; open(sys.argv[1],"a").write(json.dumps(sys.argv[2:])+"\\n")' "$FAKE_LOG" "$@"
+if [ -n "$FAKE_STDIN" ]; then cat > "$FAKE_STDIN"; fi
+if [ -f "$FAKE_DIR/$1-$2" ]; then cat "$FAKE_DIR/$1-$2"; elif [ -f "$FAKE_DIR/$1" ]; then cat "$FAKE_DIR/$1"; fi
+if [ -f "$FAKE_DIR/stderr" ]; then cat "$FAKE_DIR/stderr" >&2; fi
+exit ${FAKE_EXIT:-0}
+"""
+"""A stand-in for ``docker``, ``gh`` and the like (see :meth:`ItemTest.fake_cli`): logs its argv, copies its stdin to
+``$FAKE_STDIN``, prints ``$FAKE_DIR/<arg1>-<arg2>`` or else ``$FAKE_DIR/<arg1>``, prints ``$FAKE_DIR/stderr`` on stderr
+and exits with ``$FAKE_EXIT``."""
+
+
+class FakeCli:
+    """What :meth:`ItemTest.fake_cli` returns: read how the fake was called and what it was fed."""
+
+    def __init__(self, folder):
+        self.folder = folder
+        self.log = folder / "calls.log"
+        self.stdin = folder / "stdin.txt"
+
+    def calls(self):
+        """The argv (without the program name) of every call, in order."""
+        return [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
+
+    def stdin_text(self):
+        return self.stdin.read_text() if self.stdin.exists() else None
+
+
 def item_id(item: str) -> str:
     """The id minimal gives ``item`` (``extensions/x.py`` -> ``x``; ``tools/x.py`` -> ``tools/x``)."""
     parts = Path(item).with_suffix("").parts
@@ -134,7 +162,7 @@ class ItemTest(unittest.TestCase):
         )
         return registry, errors
 
-    def make_app(self, item, replies, *, extra=(), settings=None, session_id="s"):
+    def make_app(self, item, replies, *, extra=(), settings=None, session_id="s", cwd=None, frontend=None):
         """An ``App`` with ``item`` (and the ``extra`` paths) loaded whose provider replays ``replies``."""
         if settings:
             self.write_settings(**{item_id(item): settings})
@@ -142,10 +170,11 @@ class ItemTest(unittest.TestCase):
         app = App(
             registry=Registry(),
             session=session_mod.open_session(session_id),
-            cwd=str(self.tmp),
+            cwd=str(cwd or self.tmp),
             auto_approve=True,
             trust_project=True,
             extra_extensions=sources,
+            **({"frontend": frontend} if frontend is not None else {}),
         )
         _, errors = app.reload_extensions()
         self.assertEqual(errors, [])
@@ -195,6 +224,24 @@ class ItemTest(unittest.TestCase):
         path.write_text(script_text)
         path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         return path
+
+    def fake_cli(self, name: str, outputs: dict[str, str] | None = None, *, stderr: str = "", exit: int = 0) -> FakeCli:
+        """Put a fake ``name`` on ``PATH``. ``outputs`` maps ``"<arg1>-<arg2>"`` or ``"<arg1>"`` to what it prints."""
+        folder = self.tmp / f"fake-{name}"
+        folder.mkdir(exist_ok=True)
+        for key, text in (outputs or {}).items():
+            (folder / key).write_text(text)
+        if stderr:
+            (folder / "stderr").write_text(stderr)
+        fake = FakeCli(folder)
+        patcher = mock.patch.dict(
+            os.environ,
+            {"FAKE_LOG": str(fake.log), "FAKE_DIR": str(folder), "FAKE_STDIN": str(fake.stdin), "FAKE_EXIT": str(exit)},
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.fake_bin(name, FAKE_CLI)
+        return fake
 
     def git_repo(self, files: dict[str, str], name: str = "repo") -> Path:
         """A new git repository under the temp folder with ``files`` committed on ``main``."""

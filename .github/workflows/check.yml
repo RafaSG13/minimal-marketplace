@@ -24,3 +24,5 @@ jobs:
       - run: uvx --from git+https://github.com/RafaSG13/Minimal@main minimal ext check --install-deps .
       # Catalogue row, version bump (on pull requests) and tag vocabulary of every item.
       - run: python3 scripts/check_items.py
+      # Behaviour of the items that have tests (tests/), against minimal's main branch.
+      - run: uv run --no-project --with "mnml-agent[all] @ git+https://github.com/RafaSG13/Minimal@main" python -m unittest discover -s tests

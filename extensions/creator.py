@@ -8,6 +8,7 @@ features used, settings declared without a schema. Settings (``/ext settings cre
 
 import ast
 import inspect
+import os
 import re
 import shutil
 import subprocess
@@ -17,7 +18,7 @@ from pathlib import Path
 import minimal.api
 from minimal.api import API_VERSION
 
-__version__ = "1.1"
+__version__ = "1.2"
 __api__ = "2.3"
 __tags__ = ["workflow"]
 
@@ -170,7 +171,13 @@ PROMPT = (
     "ext_remove deletes an extension you created."
 )
 
-TAGS = ("git", "ui", "safety", "context", "agents", "provider", "theme", "diagnostics", "workflow")
+SECRET_ENV = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "BRAVE_API_KEY")
+"""Variables ``ext_check`` withholds from the process that loads the checked item."""
+
+TAGS = (
+    "git", "ui", "safety", "context", "agents", "provider", "theme", "diagnostics", "workflow",
+    "docker", "files", "github", "search", "integration", "sandbox",
+)
 """The marketplace's ``__tags__``."""
 
 FEATURE_API = (2, 3)
@@ -181,7 +188,7 @@ GUIDE = '''# Writing for API 2.3 (the rules the marketplace follows)
 Header: a one-line module docstring, `__version__ = "1.0"` (bump it on every change: minor when additive, major when a
 setting, command or behaviour was renamed or removed), `__api__ = "2.3"` only if the item uses an API 2.3 feature
 (otherwise keep the lowest API it needs, so older minimals still load it), `__tags__` from: git ui safety context agents
-provider theme diagnostics workflow.
+provider theme diagnostics workflow docker files github search integration sandbox.
 
 Settings: every user-facing knob (limit, pattern, message, threshold, glyph, enable/disable) is a validated setting whose
 default is what the item does without any:
@@ -231,7 +238,7 @@ SCHEMA = {
 
 
 def _kind(kind):
-    if kind not in CATEGORIES:
+    if not isinstance(kind, str) or kind not in CATEGORIES:
         raise ValueError(f"unknown kind {kind!r}; use one of: {', '.join(CATEGORIES)}")
     return kind
 
@@ -406,6 +413,7 @@ def ext_check(input, ctx, settings=DEFAULTS):
             text=True,
             timeout=timeout,
             cwd=ctx.cwd,
+            env={key: value for key, value in os.environ.items() if key not in SECRET_ENV},
         )
     except subprocess.TimeoutExpired:
         raise RuntimeError(
@@ -483,7 +491,9 @@ def ext_remove(input, ctx):
                 else:
                     path.unlink()
                 return f"Removed {path}. Call reload_extensions."
-    raise ValueError("only extensions under ~/.minimal/extensions or ./.minimal/extensions can be removed")
+    raise ValueError(
+        f"only extensions under ~/.minimal/extensions or ./.minimal/extensions can be removed; {path} is not one"
+    )
 
 
 def ext_catalogue_row(input, ctx):
@@ -530,6 +540,7 @@ def register(minimal):
             "required": ["name", "kind"],
         },
         confirm=True,
+        subject_key="name",
     )
     minimal.register_tool(
         name="ext_template",
@@ -574,13 +585,16 @@ def register(minimal):
             "required": ["path"],
         },
         confirm=True,
+        subject_key="path",
     )
     minimal.register_tool(
         name="ext_remove",
         run=ext_remove,
-        description="Delete an extension file or package folder from ~/.minimal/extensions or ./.minimal/extensions.",
+        description="Delete an extension file or package folder from ~/.minimal/extensions or ./.minimal/extensions "
+        "(refuses anything else, unlike `rm`).",
         input_schema={"type": "object", "properties": {"path": path}, "required": ["path"]},
         confirm=True,
+        subject_key="path",
     )
     minimal.register_tool(
         name="ext_catalogue_row",

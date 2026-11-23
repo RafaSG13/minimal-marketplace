@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-__version__ = "2.0"
-__api__ = "2.3"
+__version__ = "2.1"
+__api__ = "2.4"
 __tags__ = ["ui"]
 
 DEFAULT_EXTRA_KEYS = [
@@ -125,12 +125,18 @@ def register(minimal):
     )
     if not settings["enabled"]:
         return
-    extra = check_extra_keys(settings["extra_keys"])
+    try:
+        extra = check_extra_keys(settings["extra_keys"])
+    except ValueError as exc:
+        reason = str(exc).removeprefix("help_overlay: ")
+        minimal.report_problem(f"extensions.settings.help_overlay.extra_keys: {reason}; the default keys are listed until you fix it")
+        extra = check_extra_keys(DEFAULT_EXTRA_KEYS)
     hidden = {str(name).lstrip("/") for name in settings["hide_commands"]}
     titles = (settings["keys_title"], settings["commands_title"])
     name = settings["command"].strip().lstrip("/")
     if not name:
-        raise ValueError("help_overlay: command must not be empty")
+        minimal.report_problem("extensions.settings.help_overlay.command must not be empty; /keys is used until you fix it")
+        name = "keys"
 
     def keys(args, ctx):
         rows = (binding_rows(ctx.keybindings()) + extra) if settings["show_keys"] else []

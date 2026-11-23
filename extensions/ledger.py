@@ -4,8 +4,8 @@ A sidebar panel shows the heaviest tool results in the context; /prune drops
 chosen ones and continues in a new session (the old one stays on disk).
 """
 
-__version__ = "1.6"
-__api__ = "2.3"
+__version__ = "1.7"
+__api__ = "2.4"
 __tags__ = ["context", "ui"]
 
 import copy
@@ -281,6 +281,12 @@ def register(minimal):
     settings = minimal.declare_settings(DEFAULTS, SCHEMA)
     if not settings["enabled"]:
         return
+    if not settings["stub_prefix"].strip():
+        # An empty prefix matches every result: nothing would ever be listed or offered for pruning.
+        minimal.report_problem(
+            "extensions.settings.ledger.stub_prefix must not be empty; the default is used until you fix it"
+        )
+        settings = {**settings, "stub_prefix": DEFAULTS["stub_prefix"]}
     ledger = Ledger(settings)
     prefix = settings["stub_prefix"]
     minimal.on("tool_result", ledger.note_read)

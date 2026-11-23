@@ -1,6 +1,7 @@
-"""Run terminal UIs (lazygit, yazi, btop, ...) from minimal with /<tool> or /tui, and tell you what they changed."""
+"""Run terminal UIs (lazygit, lazydocker, yazi, lazysql, ...) from minimal with /<tool> or /tui, edit your message in
+$EDITOR with /edit, and optionally tell the model what a tool changed. Install it with `/ext`."""
 
-__version__ = "1.1"
+__version__ = "1.2"
 __api__ = "2.4"
 __tags__ = ["workflow", "ui"]
 
@@ -12,6 +13,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from minimal.api import RESERVED_KEYS, normalize_key
+
 NAME_RE = re.compile(r"[a-z0-9][a-z0-9_-]*")
 """A tool name is typed as ``/<name>``: lowercase letters, digits, ``_`` and ``-``."""
 
@@ -19,12 +22,12 @@ ALWAYS_RESERVED = frozenset({"theme", "tui"})
 """Names a tool may never take besides ``minimal.builtin_commands()``: ``/tui`` is this extension's own and ``/theme`` is a
 command only the terminal UI adds, so ``builtin_commands()`` lacks it until the first ``/reload``."""
 
-FIELDS = ("command", "description", "cwd", "env", "enabled", "install", "git", "key")
+FIELDS = ("command", "description", "cwd", "env", "enabled", "install", "git", "key", "requires")
 CHOOSER = "{chooser}"
 CWD = "{cwd}"
 
 
-def _tool(command, description, install, git=False):
+def _tool(command, description, install, git=False, requires=""):
     return {
         "command": command,
         "description": description,
@@ -34,6 +37,7 @@ def _tool(command, description, install, git=False):
         "install": install,
         "git": git,
         "key": "",
+        "requires": requires,
     }
 
 
@@ -52,6 +56,22 @@ BUILTIN_TOOLS = {
     ),
     "tig": _tool(["tig"], "git history browser", "brew install tig", git=True),
     "gitui": _tool(["gitui"], "git UI", "brew install gitui", git=True),
+    "lazysql": _tool(["lazysql"], "database client (SQL)", "brew install lazysql"),
+    "harlequin": _tool(["harlequin"], "SQL IDE for the terminal", "uv tool install harlequin"),
+    "rainfrog": _tool(["rainfrog"], "Postgres, MySQL and SQLite client", "brew install rainfrog"),
+    "posting": _tool(["posting"], "HTTP client", "uv tool install posting"),
+    "atac": _tool(["atac"], "API client (like Postman)", "brew install atac"),
+    "oxker": _tool(["oxker"], "Docker container monitor", "brew install oxker"),
+    "trippy": _tool(["trip"], "network diagnostics: /trippy <host>", "brew install trippy"),
+    "bottom": _tool(["btm"], "resource monitor", "brew install bottom"),
+    "atuin": _tool(["atuin", "search", "-i"], "shell history search", "brew install atuin"),
+    "glow": _tool(["glow", "-p"], "Markdown viewer: /glow README.md", "brew install glow"),
+    "fzf": _tool(
+        ["sh", "-c", 'git ls-files -co --exclude-standard | fzf --multi > "$1"', "fzf", CHOOSER],
+        "fuzzy file picker for the repository; the files you pick are listed as @mentions",
+        "brew install fzf",
+        requires="fzf",
+    ),
 }
 """The tools minimal knows how to run. ``command`` may use ``{cwd}`` (the tool's working directory) and ``{chooser}`` (a
 temporary file the tool writes the paths it chose to: they are listed after it exits)."""
@@ -64,14 +84,18 @@ DEFAULTS = {
     "chooser_max": 20,
     "chooser_to_draft": True,
     "report_with": "show",
+    "editor_key": "",
+    "tell_model": False,
 }
 
 SCHEMA = {
     "enabled": {"description": "Register the /tui command and a /<tool> command for each tool found; false registers nothing."},
     "tools": {
-        "description": "Tools by name, merged over the built-in ones (lazygit, yazi, btop, lazydocker, k9s, gh-dash, tig, gitui) "
+        "description": "Tools by name, merged over the built-in ones (lazygit, lazydocker, yazi, btop, k9s, gh-dash, tig, gitui, "
+        "lazysql, harlequin, rainfrog, posting, atac, oxker, trippy, bottom, atuin, glow, fzf) "
         "field by field: {\"name\": {\"command\": [argv...], \"description\", \"cwd\", \"env\", \"enabled\", \"install\", "
-        "\"git\", \"key\"}}. {cwd} and {chooser} in command are replaced; a new tool needs a command; "
+        "\"git\", \"key\", \"requires\"}}; \"requires\" names the executable that must be on PATH when it is not command[0] (a "
+        "script that runs fzf). {cwd} and {chooser} in command are replaced; a new tool needs a command; "
         "{\"lazygit\": {\"enabled\": false}} turns a built-in off; \"key\" binds a key to the tool (it runs the tool "
         "directly, as a terminal key). The global, project and local settings are merged tool by tool, so a project "
         "adds or changes one tool without replacing yours. A bad entry is skipped with a warning; the others load.",
@@ -81,6 +105,11 @@ SCHEMA = {
     "chooser_prefix": {"description": "Put before each path a file chooser (yazi) picked, so it can be pasted as a mention."},
     "chooser_max": {"description": "Most chosen paths shown right after the tool exits (/tui last lists all).", "min": 1, "max": 1000},
     "chooser_to_draft": {"description": "Add the paths a file chooser (yazi) picked to the end of your message box, so they are ready to send."},
+    "editor_key": {"description": "Key that opens your message in $VISUAL/$EDITOR like /edit (empty: no key), e.g. \"alt+e\"."},
+    "tell_model": {
+        "description": "After a git tool changed the branch or HEAD, or a file chooser picked files, tell the model once in the next "
+        "request's system prompt (\"The user ran lazygit and committed...\", \"The user picked: ...\")."
+    },
     "report_with": {
         "description": "How a tool reports (exit status, chosen paths, git changes): \"show\" adds a block to the transcript that stays, "
         "\"notify\" shows a toast that vanishes (/tui last always repeats it).",
@@ -129,6 +158,7 @@ def parse_tools(overrides, reserved):
                 ("install", isinstance(entry["install"], str), "text telling how to install it"),
                 ("git", isinstance(entry["git"], bool), "true or false"),
                 ("key", isinstance(entry["key"], str), "a key such as \"ctrl+g\" or \"\" for none"),
+                ("requires", isinstance(entry["requires"], str), "the executable that must be on PATH, or \"\" for command[0]"),
             )
             if not ok
         ]
@@ -151,9 +181,11 @@ def _env(entry):
     return {**os.environ, **entry["env"]}
 
 
-def find_executable(entry):
-    """The path of the tool's executable in the PATH it will run with, or ``None``."""
-    return shutil.which(os.path.expanduser(entry["command"][0]), path=_env(entry).get("PATH"))
+def find_executable(entry, program=None):
+    """The path of the tool's executable (``requires``, else ``command[0]``, or ``program``) in the PATH it will run
+    with, or ``None``."""
+    program = program or entry["requires"] or entry["command"][0]
+    return shutil.which(os.path.expanduser(program), path=_env(entry).get("PATH"))
 
 
 def project_dir(entry, project):
@@ -164,7 +196,7 @@ def project_dir(entry, project):
 
 
 def missing_text(name, entry):
-    exe = entry["command"][0]
+    exe = entry["requires"] or entry["command"][0]
     how = entry["install"] or f"install it, or set extensions.settings.tui_tools.tools.{name}.command to the right executable"
     return f"{name} is not installed ({exe!r} is not on PATH): {how}; then /reload."
 
@@ -188,6 +220,38 @@ def git_snapshot(cwd):
     return lines[0][3:], lines[1:]
 
 
+def head_of(cwd):
+    """``(short HEAD, branch, subject)`` of the repository at ``cwd``; ``None`` outside one or with no commit yet."""
+    def git(*args):
+        return subprocess.run(
+            ["git", "--no-optional-locks", *args], cwd=cwd, capture_output=True, text=True, errors="replace", timeout=10
+        )
+
+    try:
+        head = git("log", "-1", "--format=%h%x00%s")
+        branch = git("rev-parse", "--abbrev-ref", "HEAD")
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if head.returncode != 0 or branch.returncode != 0 or "\0" not in head.stdout:
+        return None
+    sha, _, subject = head.stdout.rstrip("\n").partition("\0")
+    return sha, branch.stdout.strip(), subject
+
+
+def model_note(name, before, after, change):
+    """What to tell the model after git tool ``name`` took the repository from ``before`` to ``after`` (:func:`head_of`
+    results): it committed on the branch, or switched branches; ``None`` when HEAD and the branch are as they were."""
+    if before is None or after is None:
+        return None
+    if before[1] != after[1]:
+        what = f"switched from branch {before[1]} to {after[1]}"
+    elif before[0] != after[0]:
+        what = f"committed or moved HEAD on {after[1]}: {before[0]} -> {after[0]} ({after[2]})"
+    else:
+        return None
+    return f"The user ran {name} and {what}." + (f" {change}" if change else "")
+
+
 def change_line(name, before, after):
     """One line saying what a git tool changed between two :func:`git_snapshot` results, or ``None`` if nothing."""
     parts = []
@@ -199,8 +263,8 @@ def change_line(name, before, after):
 
 
 def chosen_paths(chooser, project, prefix):
-    """The paths a chooser file lists: inside ``project`` relative to it with ``prefix`` (a mention; none if the path has
-    spaces or an ``@``), elsewhere absolute and as they are."""
+    """The paths a chooser file lists (absolute, or relative to ``project`` as ``fzf`` prints them): inside ``project``
+    relative to it with ``prefix`` (a mention; none if the path has spaces or an ``@``), elsewhere as they are."""
     try:
         raw = [line.strip() for line in Path(chooser).read_text(encoding="utf-8", errors="replace").splitlines()]
     except OSError:
@@ -209,7 +273,7 @@ def chosen_paths(chooser, project, prefix):
     shown = []
     for line in filter(None, raw):
         try:
-            text = str(Path(line).resolve().relative_to(root))
+            text = str(Path(root, line).resolve().relative_to(root))
         except (OSError, ValueError):
             shown.append(line)
             continue
@@ -229,7 +293,7 @@ def register(minimal):
     tools, problems = parse_tools(settings["tools"], minimal.builtin_commands() | ALWAYS_RESERVED)
     for problem in problems:
         minimal.report_problem(problem)
-    state = {"last": [], "registered": set()}
+    state = {"last": [], "registered": set(), "notes": []}
 
     def say(ctx, lines, kind="info", full=None):
         """Report ``lines`` (a terminal command's printed output is gone when the interface returns, so a block that stays,
@@ -250,8 +314,8 @@ def register(minimal):
 
     def launch(name, args, ctx):
         entry = tools[name]
-        exe = find_executable(entry)
-        if exe is None:
+        exe = find_executable(entry, entry["command"][0])
+        if find_executable(entry) is None:
             say(ctx, [missing_text(name, entry)], "error")
             return
         try:
@@ -276,6 +340,7 @@ def register(minimal):
             argv = [exe]
             argv += [part.replace(CWD, str(cwd)).replace(CHOOSER, chooser or "") for part in template] + extra
             before = git_snapshot(cwd) if entry["git"] and settings["change_note"] else None
+            head_before = head_of(cwd) if entry["git"] and settings["tell_model"] else None
             lines, full, kind = [], [], "info"  # what the notice shows, and what /tui last keeps
 
             def add(text):
@@ -306,12 +371,18 @@ def register(minimal):
                     add(f"{name} chose {len(paths)} path{'s' * (len(paths) != 1)}: {where}")
                     lines += shown
                     full += paths
+                    if settings["tell_model"]:
+                        state["notes"].append(f"The user picked: {', '.join(paths)}")
                     if len(paths) > len(shown):
                         lines.append(f"... and {len(paths) - len(shown)} more (/tui last lists all)")
             if entry["git"]:
                 ctx.git()  # makes sure the shared poller runs
+                change = None
                 if before is not None and (after := git_snapshot(cwd)) is not None and (note := change_line(name, before, after)):
                     add(note)
+                    change = note
+                if head_before is not None and (told := model_note(name, head_before, head_of(cwd), change)):
+                    state["notes"].append(told)
                 ctx.git_refresh()  # a terminal command's end asks it too, but a key's does not
             ctx.invalidate()
             if lines:
@@ -326,9 +397,20 @@ def register(minimal):
     def runner(name):
         return lambda args, ctx: launch(name, args, ctx)
 
+    def edit_key(ctx):
+        return edit("", ctx)
+
     def keyer(name):
         # A terminal key runs on the UI thread with the interface suspended, like the terminal command.
         return lambda ctx: launch(name, "", ctx)
+
+    @minimal.on("before_request")
+    def tell(payload):
+        """Tell the model once what a tool the user ran changed (``tell_model``); the main loop only."""
+        if payload.get("nested") or not state["notes"]:
+            return None
+        notes, state["notes"] = state["notes"], []
+        return {"system": payload["system"] + "\n\n" + "\n".join(notes)}
 
     for name, entry in tools.items():
         if not entry["enabled"] or find_executable(entry) is None:
@@ -375,6 +457,50 @@ def register(minimal):
         else:
             # This command only prints; the tool's own command takes the terminal. Queueing it runs it as typed.
             ctx.queue_user_message(f"/{word} {rest.strip()}".rstrip())
+
+    def edit(args, ctx):
+        """Edit the message box in $VISUAL or $EDITOR (else vi) and put the text back; unchanged text is left alone."""
+        argv = shlex.split(os.environ.get("VISUAL") or os.environ.get("EDITOR") or "vi")
+        exe = shutil.which(argv[0]) if argv else None
+        if exe is None:
+            say(ctx, [f"/edit: editor {argv[0] if argv else ''!r} is not on PATH; set $VISUAL or $EDITOR, then retry."], "error")
+            return
+        original = ctx.ui.get_draft()
+        fd, path = tempfile.mkstemp(prefix="minimal-edit-", suffix=".md")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(original)
+            try:
+                status = subprocess.run([exe, *argv[1:], path], cwd=ctx.cwd).returncode
+            except OSError as exc:
+                say(ctx, [f"/edit: could not run {exe} ({exc.strerror or exc}); check $VISUAL or $EDITOR."], "error")
+                return
+            except KeyboardInterrupt:
+                return
+            if status:
+                say(ctx, [f"/edit: {exe} exited with status {status}; your message is unchanged."], "warning")
+                return
+            edited = Path(path).read_text(encoding="utf-8", errors="replace").rstrip("\n")
+        finally:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+        if edited != original.rstrip("\n"):
+            ctx.ui.set_draft(edited)
+
+    if "edit" in minimal.builtin_commands() or "edit" in tools:
+        minimal.report_problem("/edit is already taken by another command or a tool; this extension's /edit was not added")
+    else:
+        minimal.register_command("edit", edit, description="edit your message in $VISUAL or $EDITOR", terminal=True)
+        key = settings["editor_key"]
+        if key:
+            try:
+                if normalize_key(key, "editor_key") in RESERVED_KEYS:
+                    raise ValueError(f"{key} is reserved by minimal")
+                minimal.register_keybinding(key, edit_key, "edit the message in $EDITOR", name="edit", terminal=True)
+            except ValueError as exc:
+                minimal.report_problem(f"extensions.settings.tui_tools.editor_key: {exc}; /edit works without the key")
 
     def complete(args, ctx):
         if " " in args:

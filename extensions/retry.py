@@ -17,7 +17,7 @@ Install it with ``/ext``.
 
 import time
 
-__version__ = "1.4"
+__version__ = "1.5"
 __api__ = "2.4"
 __tags__ = ["provider"]
 
@@ -83,6 +83,9 @@ SCHEMA = {
 PROGRESS_STEP = 1.0
 """Seconds between two updates of the countdown."""
 
+CANCEL_POLL = 0.1
+"""Seconds between two looks at the interrupt flag while the countdown waits."""
+
 
 def check_settings(settings):
     """``(settings, problems)``: ``settings`` as a dict where each key the schema cannot check is back to its default when
@@ -111,7 +114,7 @@ def check_settings(settings):
     ):
         try:
             fixed[key].format(**fields)
-        except (KeyError, IndexError, ValueError) as e:
+        except (KeyError, IndexError, ValueError, AttributeError, TypeError) as e:
             names = ", ".join("{" + f + "}" for f in fields)
             reset(key, f"is not a valid template ({type(e).__name__}: {e}); it may use {names}")
     return fixed, problems
@@ -182,11 +185,16 @@ def _count_down(ctx, seconds, label):
         TurnInterrupted: if the user interrupts the wait.
     """
     end = time.monotonic() + seconds
+    next_note = 0.0
     try:
         while (left := end - time.monotonic()) > 0:
             ctx.check_cancelled()
-            ctx.progress(f"{label} again in {left:.0f}s")
-            time.sleep(min(PROGRESS_STEP, left))
+            now = time.monotonic()
+            if now >= next_note:
+                ctx.progress(f"{label} again in {left:.0f}s")
+                next_note = now + PROGRESS_STEP
+            # short sleeps: an interrupt is noticed within CANCEL_POLL seconds, not after the whole step
+            time.sleep(min(CANCEL_POLL, PROGRESS_STEP, left))
         ctx.check_cancelled()
     finally:
         ctx.progress(None)

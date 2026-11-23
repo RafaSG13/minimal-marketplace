@@ -10,7 +10,7 @@ when you give no answer) and ``progress`` (show the question next to the working
 Install it with ``/ext``.
 """
 
-__version__ = "1.2"
+__version__ = "1.3"
 __api__ = "2.3"
 __tags__ = ["workflow"]
 
@@ -43,6 +43,8 @@ def ask_user(input, ctx, settings=DEFAULTS):
     question = str(input.get("question", "")).strip()
     if not question:
         raise ValueError("ask_user needs a non-empty question")
+    if input.get("options") is not None and not isinstance(input["options"], list):
+        raise ValueError('ask_user: options must be an array of strings such as ["yes", "no"]; omit it for an open question')
     options = _clean_options(input.get("options"), settings["max_options"])
     if options:
         answer = ctx.ui.choose(question, [(option, option) for option in options])

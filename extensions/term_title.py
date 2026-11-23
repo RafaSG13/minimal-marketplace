@@ -8,8 +8,8 @@ from pathlib import Path
 
 from textual.widgets import Static
 
-__version__ = "1.2"
-__api__ = "2.3"
+__version__ = "1.3"
+__api__ = "2.4"
 __tags__ = ["ui"]
 
 NAME = "term_title"
@@ -197,7 +197,14 @@ def register(minimal):
     settings = minimal.declare_settings(DEFAULTS, SCHEMA)
     if not settings["enabled"]:
         return
-    check_template(settings["template"])
+    try:
+        check_template(settings["template"])
+    except ValueError as exc:
+        reason = str(exc).removeprefix("term_title: ")
+        minimal.report_problem(
+            f"extensions.settings.term_title.template: {reason}; the default template {DEFAULTS['template']!r} is used until you fix it"
+        )
+        settings = {**settings, "template": DEFAULTS["template"]}
     terminal = Terminal()
     title = Title(settings, terminal)
 

@@ -8,7 +8,10 @@ Prints one line per problem and exits 1 if there is any:
 3. every ``__tags__`` entry belongs to :data:`TAGS`;
 4. every theme item (``themes/*.py``) passes the contrast gate (:func:`check_themes`): WCAG ratios of its registered
    colours against ``background`` and ``panel`` reach the floors :data:`TEXT_FLOOR`, :data:`DIM_FLOOR` and
-   :data:`PANEL_FLOOR`, and ``pending_bg`` differs from ``success_bg``.
+   :data:`PANEL_FLOOR`, and ``pending_bg`` differs from ``success_bg``;
+5. every item id in :data:`TESTED` has ``tests/test_<name>.py`` with at least one ``def test_``;
+6. in those items, every ``register_tool(...)`` / ``@minimal.tool(...)`` call states ``read_only=`` or ``confirm=``
+   and every ``declare_settings(...)`` call passes the defaults and the schema.
 """
 
 from __future__ import annotations
@@ -23,8 +26,63 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 CATEGORIES = ("extensions", "themes", "tools", "widgets")
 """The folders that hold items."""
-TAGS = ("git", "ui", "safety", "context", "agents", "provider", "theme", "diagnostics", "workflow")
+TAGS = (
+    "git",
+    "ui",
+    "safety",
+    "context",
+    "agents",
+    "provider",
+    "theme",
+    "diagnostics",
+    "workflow",
+    "docker",
+    "files",
+    "github",
+    "search",
+    "integration",
+    "sandbox",
+)
 """The allowed ``__tags__``."""
+TESTED: frozenset[str] = frozenset(
+    {
+        "extensions/tui_tools",
+        "tools/git",
+        "tools/fs",
+        "tools/docker",
+        "tools/gh",
+        "extensions/pr_review",
+        "extensions/skills",
+        "extensions/mcp",
+        "extensions/lsp",
+        "tools/web_fetch",
+        "tools/run_tests",
+        "tools/repo_map",
+        "tools/ast_grep",
+        "extensions/sandbox",
+        "tools/ask_user",
+        "tools/delegate",
+        "tools/web_search",
+        "extensions/claude_subscription",
+        "extensions/mermaid",
+        "extensions/theme_builder",
+        "extensions/creator",
+        "extensions/compact",
+        "extensions/crystallize",
+        "extensions/ledger",
+        "extensions/lenses",
+        "extensions/retry",
+        "extensions/help_overlay",
+        "extensions/loose_ends",
+        "extensions/modes",
+        "extensions/scope_fence",
+        "extensions/term_title",
+        "extensions/tripwire",
+    }
+)
+"""Ids (``extensions/<name>.py`` or ``tools/<name>.py`` paths without the suffix, e.g. ``tools/git``) of the items that
+must have ``tests/test_<name>.py`` and follow the item standard (explicit ``read_only``/``confirm``, a settings
+schema). It grows as items are written or audited."""
 
 
 TEXT_FLOOR = 4.5
@@ -264,9 +322,50 @@ def check_themes(found: list[Path]) -> list[str]:
     return problems
 
 
+def check_tests(found: list[Path]) -> list[str]:
+    """Every item of :data:`TESTED` has a test file with at least one test (and every id names an item)."""
+    on_disk = {item.with_suffix("").as_posix() for item in found}
+    problems = []
+    for ident in sorted(TESTED):
+        if ident not in on_disk:
+            problems.append(f"{ident}: listed in TESTED but there is no such item")
+            continue
+        name = Path(ident).name
+        test = ROOT / "tests" / f"test_{name}.py"
+        if not test.is_file() or "def test_" not in test.read_text(encoding="utf-8"):
+            problems.append(f"{ident}: no tests/test_{name}.py with a test")
+    return problems
+
+
+def _call_name(node: ast.Call) -> str:
+    return getattr(node.func, "attr", getattr(node.func, "id", ""))
+
+
+def check_standard(found: list[Path]) -> list[str]:
+    """The item standard's mechanical part, for the items of :data:`TESTED`: tools state ``read_only=``/``confirm=``
+    and settings declare a schema."""
+    problems = []
+    for item in found:
+        if item.with_suffix("").as_posix() not in TESTED or item.parts[0] not in ("extensions", "tools"):
+            continue
+        tree = ast.parse((ROOT / entry(item)).read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            name = _call_name(node)
+            keywords = {k.arg for k in node.keywords}
+            if name in ("register_tool", "tool") and not (keywords & {"read_only", "confirm"}) and None not in keywords:
+                problems.append(f"{item.as_posix()}:{node.lineno}: {name}(...) must state read_only= or confirm=")
+            if name == "declare_settings" and len(node.args) + len(keywords & {"schema"}) < 2:
+                problems.append(f"{item.as_posix()}:{node.lineno}: declare_settings(...) needs the defaults and a schema")
+    return problems
+
+
 def main() -> int:
     found = items()
-    problems = check_catalogue(found) + check_tags(found) + check_themes(found)
+    problems = (
+        check_catalogue(found) + check_tags(found) + check_themes(found) + check_tests(found) + check_standard(found)
+    )
     base_ref = os.environ.get("GITHUB_BASE_REF")
     if base_ref:
         problems += check_versions(found, base_ref)

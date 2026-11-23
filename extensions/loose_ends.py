@@ -6,7 +6,7 @@ note tool; /ends lets you review the backlog and close the finished items. Setti
 instructions the model sees and the review dialog's title.
 """
 
-__version__ = "1.8"
+__version__ = "1.9"
 __api__ = "2.4"
 __tags__ = ["workflow"]
 
@@ -83,6 +83,11 @@ def merge_glyphs(user):
     return glyphs, problems
 
 
+def _line(text):
+    """``text`` as one printable line (the model wrote it): control characters and line breaks become spaces."""
+    return " ".join("".join(ch if ch.isprintable() else " " for ch in str(text)).split())
+
+
 def _load(path, default):
     try:
         return json.loads(Path(path).read_text(encoding="utf-8"))
@@ -142,7 +147,7 @@ class LooseEndsWidget:
             return None
         lines = [f"{self.settings['title']} ({len(open_items)})"]
         for item in sorted(open_items, key=lambda i: i["id"], reverse=True)[: self.settings["rows"]]:
-            lines.append(f"{self.glyphs.get(item['kind'], '?')} {item['text']}"[: self.settings["text_width"]])
+            lines.append(f"{self.glyphs.get(item['kind'], '?')} {_line(item['text'])}"[: self.settings["text_width"]])
         return "\n".join(lines)
 
 
@@ -188,7 +193,7 @@ def register(minimal):
             print("No loose ends.")
             return
         options = [
-            (str(i["id"]), f"[{i['kind']}] {i['text']}" + (f" ({i['path']})" if i.get("path") else ""), False)
+            (str(i["id"]), f"[{i['kind']}] {_line(i['text'])}" + (f" ({_line(i['path'])})" if i.get("path") else ""), False)
             for i in open_items
         ]
         ticked = ctx.ui.choose_many(settings["dialog_title"], options)

@@ -16,7 +16,7 @@ window fill); `/ext settings claude_subscription` sets the default model and the
 Install it with `/ext`, or `minimal ext install claude_subscription` before the first start.
 """
 
-__version__ = "1.2"
+__version__ = "1.3"
 __api__ = "2.3"
 __tags__ = ["provider"]
 
@@ -63,6 +63,10 @@ NOT_LOGGED_IN = "Not logged in to Claude: run `minimal --login claude` (or /logi
 
 _data_dir: Callable[[str], Path] | None = None
 """This extension's ``minimal.data_dir``, set by :func:`register`."""
+
+
+class TokenServiceUnavailable(RuntimeError):
+    """The token endpoint could not be reached or failed on its side: the login itself may be fine."""
 
 
 @dataclass
@@ -129,12 +133,24 @@ def _token_request(body: dict, headers: dict[str, str] | None = None) -> dict:
         with urllib.request.urlopen(request, timeout=30) as response:
             return json.loads(response.read())
     except urllib.error.HTTPError as e:
-        raise RuntimeError(
-            f"Claude token request failed: HTTP {e.code}: {e.read().decode(errors='replace')[:300]}"
+        detail = f"HTTP {e.code}: {e.read().decode(errors='replace')[:300]}"
+        if e.code >= 500:
+            raise TokenServiceUnavailable(f"Claude token request failed: {detail}; retry in a few minutes") from None
+        raise RuntimeError(f"Claude token request failed: {detail}") from None
+    except (urllib.error.URLError, OSError) as e:
+        raise TokenServiceUnavailable(
+            f"Claude token request failed: cannot reach {TOKEN_URL} ({getattr(e, 'reason', e)}); "
+            "check your network connection and retry"
+        ) from None
+    except ValueError:
+        raise TokenServiceUnavailable(
+            "Claude token request failed: the reply was not JSON; retry in a few minutes"
         ) from None
 
 
 def _credentials_from(data: dict, previous_refresh: str = "") -> Credentials:
+    if not isinstance(data, dict) or not data.get("access_token"):
+        raise RuntimeError("Claude token reply has no access_token; run `minimal --login claude` again.")
     return Credentials(
         access=data["access_token"],
         refresh=data.get("refresh_token") or previous_refresh,
@@ -147,13 +163,15 @@ def refresh(creds: Credentials) -> Credentials:
     """Exchange the refresh token for a new access token.
 
     Raises:
-        RuntimeError: if the login expired or was revoked.
+        RuntimeError: if the login expired or was revoked, or the token service could not be reached (the message says which).
     """
     try:
         data = _token_request(
             {"grant_type": "refresh_token", "client_id": CLIENT_ID, "refresh_token": creds.refresh},
             {"anthropic-beta": OAUTH_BETA},
         )
+    except TokenServiceUnavailable:
+        raise  # the message says to retry: a network or server failure does not mean the login is gone
     except RuntimeError as e:
         raise RuntimeError(f"Claude login expired or was revoked ({e}). Run `minimal --login claude` (or /login).") from None
     new = _credentials_from(data, creds.refresh)
@@ -229,7 +247,7 @@ def login(open_browser: Callable[[str], object] = webbrowser.open, timeout: floa
         print(f"Opening the browser to sign in to Claude. If it does not open, visit:\n{url}", flush=True)
         open_browser(url)
         if not done.wait(timeout):
-            raise TimeoutError("Claude login timed out")
+            raise TimeoutError(f"Claude login timed out after {timeout:g}s; run `minimal --login claude` again and finish in the browser")
         if "error" in result:
             raise RuntimeError(f"Claude login failed: {result['error']}")
     finally:

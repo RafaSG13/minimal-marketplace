@@ -12,7 +12,7 @@ how much of the plan the question shows.
 Install it with ``/ext``.
 """
 
-__version__ = "1.2"
+__version__ = "1.3"
 __api__ = "2.3"
 __tags__ = ["workflow", "safety"]
 
@@ -33,6 +33,9 @@ APPROVED = "The plan is approved. Execute it."
 NO_MODE = ("", "off", "none")
 CHOICES = ("plan", "build", *NO_MODE)
 NUMBERED_STEP = re.compile(r"^\s{0,3}\d+[.)]\s+\S", re.MULTILINE)
+PLAN_BLOCKED = ("ast_grep_rewrite", "docker_compose")
+"""Tools that change things but decide per call whether to ask (``confirm`` is a function), which ``read_only`` does
+not block, so plan mode names them (a mode may name tools that are not installed)."""
 MIN_STEPS = 2
 PREVIEW_CHARS = 1500
 
@@ -96,6 +99,7 @@ def register(minimal):
         "plan",
         description="investigate and propose a numbered plan; nothing is changed",
         read_only=True,
+        exclude_tools=PLAN_BLOCKED,
         system_note=settings["plan_note"],
     )
     minimal.register_mode(

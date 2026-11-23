@@ -21,7 +21,7 @@ import collections
 import threading
 from pathlib import Path
 
-__version__ = "2.1"
+__version__ = "2.2"
 __api__ = "2.4"
 __tags__ = ["agents"]
 
@@ -135,6 +135,13 @@ def _read_only_names(ctx, exclude=()):
 
 def register(minimal):
     settings = minimal.declare_settings(DEFAULTS, SCHEMA)
+    if settings["default_max_turns"] > settings["max_turns_limit"]:
+        minimal.report_problem(
+            f"setting default_max_turns ({settings['default_max_turns']}) is above max_turns_limit "
+            f"({settings['max_turns_limit']}); using {settings['max_turns_limit']}: lower default_max_turns or "
+            "raise max_turns_limit"
+        )
+        settings = {**settings, "default_max_turns": settings["max_turns_limit"]}
     roles = collections.Counter()  # the roles of the delegates running now
     lock = threading.Lock()
 
